@@ -1,0 +1,6 @@
+{
+  "name": "AUDITORÍA CONCURRENTE IA",
+  "description": "Plataforma profesional de auditoría concurrente hospitalaria con inteligencia artificial para IPS de Colombia.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
