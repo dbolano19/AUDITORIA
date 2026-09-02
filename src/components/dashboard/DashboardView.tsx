@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { storageService } from '../../services/storageService';
 import { IPS, User } from '../../types';
+import { ExecutiveDashboard } from './ExecutiveDashboard';
 
 interface DashboardViewProps {
   onNavigate: (view: any) => void;
@@ -35,6 +36,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenExpediente,
   activeUser
 }) => {
+  const [viewMode, setViewMode] = useState<'executive' | 'operational'>('executive');
   const ipsList = storageService.getIPS();
   const users = storageService.getUsers();
   const audits = storageService.getAudits();
@@ -74,46 +76,83 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
       
-      {/* Top Banner & Quick Actions */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <span>Panel de Auditoría Concurrente</span>
-            <span className="text-xs font-semibold px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full border border-emerald-300">
-              En Vivo
-            </span>
-          </h1>
-          <p className="text-xs md:text-sm text-slate-600 mt-1">
-            Supervisión clínica y administrativa consolidada para IPS de Barranquilla (Bonadona · Misericordia · Costa).
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
+      {/* Top View Mode Switcher */}
+      <div className="bg-white p-2 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
           <button
-            onClick={() => onNavigate('audit-hc')}
-            className="flex items-center gap-1.5 px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-medium transition-colors shadow-xs cursor-pointer"
+            onClick={() => setViewMode('executive')}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              viewMode === 'executive'
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
           >
-            <FileSearch className="w-4 h-4 text-cyan-400" />
-            <span>Auditar HC (PDF)</span>
+            <Activity className="w-4 h-4 text-cyan-400" />
+            <span>Dashboard Gerencial (Fase 7)</span>
           </button>
 
           <button
-            onClick={onOpenNewPatientModal}
-            className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-medium transition-colors border border-slate-200 cursor-pointer"
+            onClick={() => setViewMode('operational')}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              viewMode === 'operational'
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
           >
-            <Plus className="w-4 h-4" />
-            <span>Nuevo Paciente</span>
-          </button>
-
-          <button
-            onClick={onOpenNewAuditModal}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-cyan-700 hover:bg-cyan-800 text-white rounded-lg text-xs font-semibold transition-colors shadow-xs cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>+ NUEVA AUDITORÍA</span>
+            <ClipboardList className="w-4 h-4 text-slate-400" />
+            <span>Panel Operativo de Concurrencia</span>
           </button>
         </div>
+
+        <span className="text-[11px] text-slate-400 hidden sm:inline-block pr-2">
+          Red FOMAG Barranquilla: Bonadona · Misericordia · Costa
+        </span>
       </div>
+
+      {viewMode === 'executive' ? (
+        <ExecutiveDashboard onNavigateToAudit={onOpenExpediente} />
+      ) : (
+        <>
+          {/* Top Banner & Quick Actions */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+            <div>
+              <h1 className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                <span>Panel Operativo de Auditoría Concurrente</span>
+                <span className="text-xs font-semibold px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full border border-emerald-300">
+                  En Vivo
+                </span>
+              </h1>
+              <p className="text-xs md:text-sm text-slate-600 mt-1">
+                Supervisión clínica y administrativa consolidada para IPS de Barranquilla (Bonadona · Misericordia · Costa).
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => onNavigate('audit-hc')}
+                className="flex items-center gap-1.5 px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-medium transition-colors shadow-xs cursor-pointer"
+              >
+                <FileSearch className="w-4 h-4 text-cyan-400" />
+                <span>Auditar HC (PDF)</span>
+              </button>
+
+              <button
+                onClick={onOpenNewPatientModal}
+                className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-medium transition-colors border border-slate-200 cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Nuevo Paciente</span>
+              </button>
+
+              <button
+                onClick={onOpenNewAuditModal}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-cyan-700 hover:bg-cyan-800 text-white rounded-lg text-xs font-semibold transition-colors shadow-xs cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>+ NUEVA AUDITORÍA</span>
+              </button>
+            </div>
+          </div>
 
       {/* Filter Toolbar (Requirement 5) */}
       <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-3">
@@ -580,6 +619,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </table>
         </div>
       </div>
+      </>
+      )}
 
     </div>
   );

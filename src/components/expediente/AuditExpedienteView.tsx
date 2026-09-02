@@ -47,6 +47,9 @@ import {
   DailyFollowUp,
   UserSatisfactionRecord
 } from '../../types';
+import { AuthorizeActionUseCase } from '../../application/auth/AuthorizeActionUseCase';
+import { PrivacyGuard } from '../../domain/services/PrivacyGuard';
+import { ShieldAlert, Lock } from 'lucide-react';
 
 interface AuditExpedienteViewProps {
   auditId: string;
@@ -105,10 +108,36 @@ export const AuditExpedienteView: React.FC<AuditExpedienteViewProps> = ({
         <h2 className="text-base font-bold text-slate-800">Expediente de Auditoría no encontrado</h2>
         <button
           onClick={onBack}
-          className="px-4 py-2 bg-cyan-700 text-white text-xs font-semibold rounded-lg"
+          className="px-4 py-2 bg-cyan-700 text-white text-xs font-semibold rounded-lg cursor-pointer"
         >
           Regresar a Auditorías
         </button>
+      </div>
+    );
+  }
+
+  // Phase 8: Multi-IPS Segregation Gate
+  const canAccessThisIPS = AuthorizeActionUseCase.canAccessIPS(activeUser as any, audit.ipsId);
+  if (!canAccessThisIPS) {
+    return (
+      <div className="p-8 max-w-2xl mx-auto">
+        <div className="bg-rose-50 border border-rose-200 rounded-2xl p-6 text-center space-y-4 shadow-sm">
+          <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center mx-auto">
+            <ShieldAlert className="w-6 h-6" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-rose-950">Acceso Bloqueado por Segregación de IPS</h3>
+            <p className="text-xs text-rose-700 mt-1">
+              Usted no tiene asignada la institución médica de este expediente (<strong>{ips?.name || audit.ipsId}</strong>). Su perfil solo autoriza las IPS designadas para su usuario.
+            </p>
+          </div>
+          <button
+            onClick={onBack}
+            className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white text-xs font-bold rounded-xl cursor-pointer"
+          >
+            Volver a Lista de Auditorías
+          </button>
+        </div>
       </div>
     );
   }

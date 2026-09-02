@@ -15,11 +15,16 @@ import {
   Layers,
   FileCheck,
   RefreshCw,
-  FolderOpen
+  FolderOpen,
+  X
 } from 'lucide-react';
 import { storageService } from '../../services/storageService';
 import { aiService, AIAnalysisResponse } from '../../services/aiService';
 import { ClinicalDocHC, Patient, Audit, User } from '../../types';
+import { ConcurrentAuditEngineReview } from '../audit/ConcurrentAuditEngineReview';
+import { FileSecurityService } from '../../infrastructure/security/FileSecurityService';
+import { AuditSecurityEventUseCase } from '../../application/security/AuditSecurityEventUseCase';
+import { AuthorizeActionUseCase } from '../../application/auth/AuthorizeActionUseCase';
 
 interface AuditClinicalRecordUploadViewProps {
   initialAuditId?: string;
@@ -54,7 +59,7 @@ export const AuditClinicalRecordUploadView: React.FC<AuditClinicalRecordUploadVi
     documents[0] || null
   );
 
-  // AI Readiness inspection modal
+  // AI Expert Audit Engine modal & review state (Phase 3)
   const [isAIAnalyzing, setIsAIAnalyzing] = useState(false);
   const [aiResponse, setAiResponse] = useState<AIAnalysisResponse | null>(null);
   const [showAIModal, setShowAIModal] = useState(false);
@@ -68,14 +73,38 @@ export const AuditClinicalRecordUploadView: React.FC<AuditClinicalRecordUploadVi
     setSelectedDocForPreview(docs[0] || null);
   };
 
-  const handleFileProcess = (file: File) => {
-    if (!file.name.toLowerCase().endsWith('.pdf')) {
-      alert('Por favor seleccione únicamente archivos en formato PDF (.pdf).');
+  const handleFileProcess = async (file: File) => {
+    // 1. Permission check
+    if (!AuthorizeActionUseCase.hasPermission(activeUser as any, 'hc.upload')) {
+      alert(`Acceso denegado: El rol "${activeUser.role}" no tiene permisos para cargar historias clínicas.`);
+      return;
+    }
+
+    // 2. File security validation (magic bytes, extension, MIME, size, 0-byte corrupt check)
+    const validation = await FileSecurityService.validateUploadedFile(file);
+    if (!validation.valid) {
+      alert(`Error de validación de seguridad: ${validation.errorMessage}`);
+      AuditSecurityEventUseCase.logSecurityEvent({
+        action: 'SECURITY_ALERT',
+        module: 'Historia Clínica',
+        resource: file.name,
+        result: 'DENEGADO',
+        userId: activeUser.id,
+        userName: activeUser.name,
+        userRole: activeUser.role,
+        details: `Carga de archivo rechazada: ${validation.errorCode} - ${validation.errorMessage}`
+      });
       return;
     }
 
     if (!selectedAuditId || !currentPatient) {
       alert('Por favor seleccione primero una auditoría y un paciente para asociar el expediente.');
+      return;
+    }
+
+    // 3. IPS access check
+    if (currentIPS && !AuthorizeActionUseCase.canAccessIPS(activeUser as any, currentIPS.id)) {
+      alert(`Acceso denegado: No tiene asignada la IPS "${currentIPS.name}".`);
       return;
     }
 
@@ -116,6 +145,22 @@ export const AuditClinicalRecordUploadView: React.FC<AuditClinicalRecordUploadVi
       setDocuments(updatedDocs);
       setSelectedDocForPreview(saved);
       setUploadProgress(null);
+
+      // Audit log registration
+      AuditSecurityEventUseCase.logSecurityEvent({
+        action: 'UPLOAD_HC',
+        module: 'Historia Clínica',
+        resource: file.name,
+        result: 'EXITOSO',
+        userId: activeUser.id,
+        userName: activeUser.name,
+        userRole: activeUser.role,
+        ipsId: currentIPS?.id,
+        ipsName: currentIPS?.name,
+        auditId: selectedAuditId,
+        patientInternalId: currentPatient?.internalId,
+        details: `Carga exitosa de historia clínica PDF (${(file.size / (1024 * 1024)).toFixed(2)} MB, ~${pageEstimate} págs) para paciente ${currentPatient?.internalId}`
+      });
     }, 300);
   };
 
@@ -143,7 +188,7 @@ export const AuditClinicalRecordUploadView: React.FC<AuditClinicalRecordUploadVi
     }
   };
 
-  // Phase 1 AI Preparation Trigger (Requirement 11 & 30)
+  // Phase 3 Expert Concurrent Audit Engine Trigger
   const handleAnalyzeWithAI = async (doc: ClinicalDocHC) => {
     if (!currentPatient || !currentAudit || !currentIPS) return;
     setIsAIAnalyzing(true);
@@ -155,7 +200,18 @@ export const AuditClinicalRecordUploadView: React.FC<AuditClinicalRecordUploadVi
         patientId: currentPatient.id,
         auditId: currentAudit.id,
         ipsId: currentIPS.id,
-        auditDate: currentAudit.auditDate
+        auditDate: currentAudit.auditDate,
+        patientName: currentPatient.fullName,
+        docType: currentPatient.docType,
+        docNumber: currentPatient.docNumber,
+        age: currentPatient.age,
+        sex: currentPatient.sex,
+        roomBed: currentPatient.roomBed,
+        service: currentPatient.service,
+        ipsName: currentIPS.name,
+        admissionDate: currentPatient.admissionDate,
+        mainDiagnosis: currentPatient.mainDiagnosis,
+        rawText: doc.extractedTextSnippet || ''
       });
       setAiResponse(response);
     } catch (e) {
@@ -180,7 +236,7 @@ export const AuditClinicalRecordUploadView: React.FC<AuditClinicalRecordUploadVi
             </h1>
           </div>
           <p className="text-xs md:text-sm text-slate-600 mt-1">
-            Módulo de ingesta, visualización y preparación documental de historias clínicas para auditoría hospitalaria.
+            Motor Experto de Auditoría Concurrente FOMAG sobre Historia Clínica en PDF.
           </p>
         </div>
 
@@ -245,7 +301,7 @@ export const AuditClinicalRecordUploadView: React.FC<AuditClinicalRecordUploadVi
               <span>Cargar Expediente Clínico PDF</span>
             </h2>
 
-            {/* Drag & Drop Area (Requirement 10) */}
+            {/* Drag & Drop Area */}
             <div
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
@@ -315,11 +371,10 @@ export const AuditClinicalRecordUploadView: React.FC<AuditClinicalRecordUploadVi
             <div className="p-3 bg-amber-50 rounded-lg border border-amber-200 text-[11px] text-amber-900 space-y-1">
               <div className="font-bold flex items-center gap-1 text-amber-950">
                 <ShieldAlert className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-                <span>Criterio Fase 1: Ingesta sin inferencia automática</span>
+                <span>Criterio Guía FOMAG: NO EVIDENCE → NO CLAIM</span>
               </div>
               <p className="leading-relaxed text-slate-700">
-                El documento se vincula al paciente y auditoría, dejando la estructura de datos lista para el 
-                <strong> Motor Experto de IA</strong> de la siguiente fase.
+                El motor analiza exhaustivamente la historia clínica con citación exacta por página y soporte documental para cada hallazgo y recomendación de 24 horas.
               </p>
             </div>
           </div>
@@ -357,7 +412,6 @@ export const AuditClinicalRecordUploadView: React.FC<AuditClinicalRecordUploadVi
                         </div>
                       </div>
 
-                      {/* Processing Status Badge (Requirement 10) */}
                       <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                         {doc.status}
                       </span>
@@ -389,13 +443,13 @@ export const AuditClinicalRecordUploadView: React.FC<AuditClinicalRecordUploadVi
                   </div>
                 </div>
 
-                {/* Requirement 11: Button "ANALIZAR CON IA" */}
+                {/* Button "EJECUTAR AUDITORÍA CONCURRENTE" */}
                 <button
                   onClick={() => handleAnalyzeWithAI(selectedDocForPreview)}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 bg-linear-to-r from-cyan-700 to-teal-600 hover:from-cyan-800 hover:to-teal-700 text-white rounded-lg text-xs font-bold shadow-xs transition-all cursor-pointer"
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 bg-linear-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white rounded-lg text-xs font-bold shadow-xs transition-all cursor-pointer"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-cyan-200" />
-                  <span>ANALIZAR CON IA</span>
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-200" />
+                  <span>EJECUTAR AUDITORÍA CONCURRENTE</span>
                 </button>
               </div>
 
@@ -405,15 +459,15 @@ export const AuditClinicalRecordUploadView: React.FC<AuditClinicalRecordUploadVi
                 {/* Visual Representation of the PDF Document */}
                 <div className="bg-white rounded-lg border border-slate-300 shadow-xs p-6 font-mono text-xs text-slate-800 space-y-4">
                   <div className="flex items-center justify-between border-b border-slate-200 pb-3 text-slate-500 text-[11px] font-sans">
-                    <span className="font-bold text-cyan-800 uppercase tracking-wide">
-                      VISOR DE EXPEDIENTE CLÍNICO DIGITALIZADO
+                    <span className="font-bold text-emerald-800 uppercase tracking-wide">
+                      EXPEDIENTE CLÍNICO DIGITALIZADO PARA AUDITORÍA
                     </span>
                     <span>Página 1 de {selectedDocForPreview.pageCount}</span>
                   </div>
 
                   <div className="space-y-2 leading-relaxed">
                     <div className="text-[11px] font-bold text-slate-900 border-b border-dashed border-slate-200 pb-1 font-sans">
-                      INSTITUCIÓN: {currentIPS?.name.toUpperCase()} · BARRANQUILLA, COLOMBIA
+                      INSTITUCIÓN: {currentIPS?.name.toUpperCase()} · COLOMBIA
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-600 font-sans">
                       <div>Paciente: <strong>{currentPatient?.fullName}</strong></div>
@@ -423,7 +477,7 @@ export const AuditClinicalRecordUploadView: React.FC<AuditClinicalRecordUploadVi
                     </div>
 
                     <div className="pt-2 text-xs font-sans text-slate-800">
-                      <span className="font-bold text-cyan-900 block mb-1">FRAGMENTO DE INGRESO Y EVOLUCIÓN:</span>
+                      <span className="font-bold text-emerald-900 block mb-1">FRAGMENTO DOCUMENTAL DE INGRESO:</span>
                       <p className="bg-slate-50 p-3 rounded border border-slate-200 leading-relaxed italic text-slate-700">
                         "{selectedDocForPreview.extractedTextSnippet || 'Sin texto extraído'}"
                       </p>
@@ -442,13 +496,13 @@ export const AuditClinicalRecordUploadView: React.FC<AuditClinicalRecordUploadVi
                 <div className="p-3 bg-white rounded-lg border border-slate-200 flex items-center justify-between text-xs text-slate-700">
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Documento indexado con soporte para extracción de evidencia citada por página.</span>
+                    <span>Documento indexado para el Motor Experto con soporte de 22 fases de análisis.</span>
                   </div>
                   <button
-                    onClick={() => onOpenExpediente(selectedAuditId)}
-                    className="text-cyan-700 hover:text-cyan-900 font-semibold underline cursor-pointer"
+                    onClick={() => handleAnalyzeWithAI(selectedDocForPreview)}
+                    className="text-emerald-700 hover:text-emerald-900 font-semibold underline cursor-pointer"
                   >
-                    Vincular a Hallazgo
+                    Ver Análisis Experto
                   </button>
                 </div>
 
@@ -465,103 +519,63 @@ export const AuditClinicalRecordUploadView: React.FC<AuditClinicalRecordUploadVi
 
       </div>
 
-      {/* Modal: AI Architecture Readiness (Phase 1) */}
+      {/* Full-Screen Modal: Expert Concurrent Audit Engine Review (Phase 3) */}
       {showAIModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            <div className="p-4 border-b border-slate-200 bg-slate-900 text-white flex items-center justify-between">
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto">
+          <div className="bg-slate-50 rounded-2xl shadow-2xl max-w-6xl w-full border border-slate-300 overflow-hidden my-auto max-h-[95vh] flex flex-col">
+            
+            {/* Modal Bar */}
+            <div className="p-4 border-b border-slate-200 bg-slate-900 text-white flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-cyan-400" />
-                <h3 className="font-bold text-sm tracking-tight">
-                  Arquitectura Preparada para Motor de IA (Fase 2)
-                </h3>
+                <Sparkles className="w-5 h-5 text-emerald-400" />
+                <div>
+                  <h3 className="font-bold text-sm tracking-tight">
+                    Motor Experto de Auditoría Concurrente FOMAG
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    Análisis sobre Historia Clínica en PDF con Citación Documental Obligatoria
+                  </p>
+                </div>
               </div>
               <button
                 onClick={() => setShowAIModal(false)}
-                className="text-slate-400 hover:text-white text-sm font-bold"
+                className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+                title="Cerrar modal"
               >
-                ✕
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-5 space-y-4 text-xs max-h-[75vh] overflow-y-auto">
+            {/* Modal Body */}
+            <div className="overflow-y-auto flex-1 p-0">
               {isAIAnalyzing ? (
-                <div className="p-8 text-center space-y-3">
-                  <RefreshCw className="w-8 h-8 text-cyan-700 animate-spin mx-auto" />
-                  <p className="font-semibold text-slate-800">Verificando pipeline y estructura JSON de IA...</p>
-                </div>
-              ) : aiResponse ? (
-                <div className="space-y-4">
-                  {/* Safety Alert */}
-                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-900 text-[11px]">
-                    <strong>Regla de Seguridad Clínica Activa:</strong> {aiResponse.analysisData.disclaimer}
-                  </div>
-
-                  {/* 3 Strictly Separated Layers (Requirement 30) */}
-                  <div className="space-y-3">
-                    
-                    {/* Layer 1: DATOS EXTRAÍDOS */}
-                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-1.5">
-                      <div className="flex items-center justify-between font-bold text-slate-900 text-xs">
-                        <span className="flex items-center gap-1.5 text-blue-700">
-                          <FileCheck className="w-4 h-4" />
-                          <span>1. DATOS EXTRAÍDOS (Hechos documentales verificables)</span>
-                        </span>
-                        <span className="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded">Verificable</span>
-                      </div>
-                      <p className="text-slate-600 text-[11px]">
-                        Metadatos extraídos: {aiResponse.analysisData.extractedData.demographics.documentTitle} ({aiResponse.analysisData.extractedData.demographics.pageCount} páginas).
-                      </p>
-                      <ul className="list-disc list-inside text-slate-600 text-[11px] space-y-0.5">
-                        {aiResponse.analysisData.extractedData.medicationsFound.map((m: string, i: number) => (
-                          <li key={i}>{m}</li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    {/* Layer 2: ANÁLISIS IA */}
-                    <div className="bg-purple-50/60 p-3 rounded-lg border border-purple-200 space-y-1.5">
-                      <div className="flex items-center justify-between font-bold text-purple-950 text-xs">
-                        <span className="flex items-center gap-1.5 text-purple-700">
-                          <Sparkles className="w-4 h-4" />
-                          <span>2. ANÁLISIS IA (Borrador sugerido para el auditor)</span>
-                        </span>
-                        <span className="text-[10px] bg-purple-100 text-purple-800 px-2 py-0.5 rounded">No vinculante</span>
-                      </div>
-                      <ul className="list-disc list-inside text-slate-700 text-[11px] space-y-0.5">
-                        {aiResponse.analysisData.aiAnalysisDraft.clinicalChronology.map((c: string, i: number) => (
-                          <li key={i}>{c}</li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    {/* Layer 3: VALIDACIÓN DEL AUDITOR */}
-                    <div className="bg-emerald-50/60 p-3 rounded-lg border border-emerald-200 space-y-1.5">
-                      <div className="flex items-center justify-between font-bold text-emerald-950 text-xs">
-                        <span className="flex items-center gap-1.5 text-emerald-700">
-                          <CheckCircle2 className="w-4 h-4" />
-                          <span>3. VALIDACIÓN DEL AUDITOR (Autoridad Clínica Humana)</span>
-                        </span>
-                        <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">Obligatorio</span>
-                      </div>
-                      <p className="text-slate-700 text-[11px]">
-                        Estado actual: <strong>{aiResponse.analysisData.auditorValidation.status}</strong>. El auditor conserva el control absoluto sobre la emisión final de hallazgos y notas.
-                      </p>
-                    </div>
-
+                <div className="p-16 text-center space-y-4">
+                  <RefreshCw className="w-10 h-10 text-emerald-600 animate-spin mx-auto" />
+                  <div className="space-y-1">
+                    <p className="font-bold text-base text-slate-900">
+                      Ejecutando Motor Experto de Auditoría Concurrente...
+                    </p>
+                    <p className="text-xs text-slate-600 max-w-md mx-auto">
+                      Indexando páginas, clasificando evoluciones, aplicando 10 criterios a paraclínicos, detectando barreras de estancia y estructurando plan de 24 horas.
+                    </p>
                   </div>
                 </div>
-              ) : null}
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
-                <button
-                  type="button"
-                  onClick={() => setShowAIModal(false)}
-                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-semibold cursor-pointer shadow-xs"
-                >
-                  Entendido (Listo para Fase 2)
-                </button>
-              </div>
+              ) : aiResponse?.expertAuditResult ? (
+                <ConcurrentAuditEngineReview
+                  auditResult={aiResponse.expertAuditResult}
+                  onConfirmAll={() => {
+                    alert('Auditoría validada y confirmada por el Auditor Médico. Registro guardado en el expediente.');
+                    setShowAIModal(false);
+                  }}
+                  onExportNote={() => {
+                    alert('Nota oficial de auditoría concurrente FOMAG exportada exitosamente.');
+                  }}
+                />
+              ) : (
+                <div className="p-8 text-center text-slate-600">
+                  No fue posible generar el análisis experto para este documento.
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -570,3 +584,4 @@ export const AuditClinicalRecordUploadView: React.FC<AuditClinicalRecordUploadVi
     </div>
   );
 };
+

@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { storageService } from '../../services/storageService';
 import { Patient, IdentificationType, PatientStatus, User } from '../../types';
+import { AuthorizeActionUseCase } from '../../application/auth/AuthorizeActionUseCase';
 
 interface PatientsViewProps {
   onSelectPatient: (patient: Patient) => void;
@@ -136,6 +137,10 @@ export const PatientsView: React.FC<PatientsViewProps> = ({
   };
 
   const filteredPatients = patients.filter(patient => {
+    // Phase 8: Strict IPS Segregation Check
+    const hasIPSAccess = AuthorizeActionUseCase.canAccessIPS(activeUser as any, patient.ipsId);
+    if (!hasIPSAccess) return false;
+
     const matchesSearch =
       patient.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       patient.docNumber.includes(searchTerm) ||

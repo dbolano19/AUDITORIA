@@ -73,41 +73,66 @@ export const INITIAL_USERS: User[] = [
   {
     id: 'usr-admin-1',
     name: 'Dr. Alejandro Restrepo',
-    email: 'admin.auditoria@minsalud.gov.co',
+    email: 'admin.auditoria@fomag.gov.co',
     role: 'Administrador',
+    status: 'activo',
+    ipsAssigned: ['all'],
     specialty: 'Medicina Interna / Auditoría en Salud',
-    regMedica: 'RM-08-44921'
+    regMedica: 'RM-08-44921',
+    createdAt: '2025-01-01T08:00:00Z'
   },
   {
     id: 'usr-auditor-1',
     name: 'Dra. Patricia Charry',
-    email: 'p.charry@auditoria.co',
+    email: 'p.charry@auditoriasalud.co',
     role: 'Auditor',
+    status: 'activo',
+    ipsAssigned: ['ips-bonadona'],
     specialty: 'Epidemiología y Auditoría Clínica',
     regMedica: 'RM-08-31204',
-    ipsAssigned: ['ips-bonadona', 'ips-misericordia']
+    createdAt: '2025-01-05T08:00:00Z'
+  },
+  {
+    id: 'usr-auditor-2',
+    name: 'Dra. Elena Vargas',
+    email: 'e.vargas@auditoriasalud.co',
+    role: 'Auditor',
+    status: 'activo',
+    ipsAssigned: ['ips-misericordia'],
+    specialty: 'Auditoría Médica y Concurrente',
+    regMedica: 'RM-08-55219',
+    createdAt: '2025-01-08T08:00:00Z'
   },
   {
     id: 'usr-coord-1',
-    name: 'Dr. Gabriel Echeverri',
-    email: 'g.echeverri@auditoria.co',
+    name: 'Dr. Carlos Fuentes',
+    email: 'c.fuentes@fomag.gov.co',
     role: 'Coordinador',
-    specialty: 'Gerencia Hospitalaria',
-    regMedica: 'RM-08-19882'
+    status: 'activo',
+    ipsAssigned: ['all'],
+    specialty: 'Gerencia Hospitalaria y Auditoría Médica',
+    regMedica: 'RM-08-19882',
+    createdAt: '2025-01-02T08:00:00Z'
   },
   {
-    id: 'usr-super-1',
-    name: 'Dra. María Jimena Santos',
-    email: 'mj.santos@superintendencia.gov.co',
-    role: 'Supervisor',
-    specialty: 'Garantía de Calidad'
+    id: 'usr-gerencia-1',
+    name: 'Dra. Martha Gómez',
+    email: 'm.gomez@fomag.gov.co',
+    role: 'Gerencia',
+    status: 'activo',
+    ipsAssigned: ['all'],
+    specialty: 'Dirección Médica y Planeación Estratégica',
+    createdAt: '2025-01-02T08:00:00Z'
   },
   {
-    id: 'usr-consulta-1',
-    name: 'Lic. Andrés Buelvas',
-    email: 'a.buelvas@analitica.co',
-    role: 'Consulta',
-    specialty: 'Analista de Datos Clínicos'
+    id: 'usr-lectura-1',
+    name: 'Lic. Fernando Rojas',
+    email: 'f.rojas@analisis.co',
+    role: 'Solo lectura',
+    status: 'activo',
+    ipsAssigned: ['ips-bonadona', 'ips-misericordia', 'ips-costa'],
+    specialty: 'Analista Estadístico en Salud',
+    createdAt: '2025-01-10T08:00:00Z'
   }
 ];
 

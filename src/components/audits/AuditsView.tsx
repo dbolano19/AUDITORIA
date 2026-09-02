@@ -16,6 +16,8 @@ import {
 import { storageService } from '../../services/storageService';
 import { reportService } from '../../services/reportService';
 import { Audit, AuditType, AuditStatus, User } from '../../types';
+import { AuthorizeActionUseCase } from '../../application/auth/AuthorizeActionUseCase';
+import { AuthorizationService } from '../../infrastructure/auth/AuthorizationService';
 
 interface AuditsViewProps {
   onOpenExpediente: (auditId: string) => void;
@@ -61,6 +63,11 @@ export const AuditsView: React.FC<AuditsViewProps> = ({
   };
 
   const filteredAudits = audits.filter(audit => {
+    // Phase 8: Multi-IPS Segregation
+    if (!AuthorizeActionUseCase.canAccessIPS(activeUser as any, audit.ipsId)) {
+      return false;
+    }
+
     const patient = patients.find(p => p.id === audit.patientId);
     const matchesSearch =
       audit.auditCode.toLowerCase().includes(searchTerm.toLowerCase()) ||

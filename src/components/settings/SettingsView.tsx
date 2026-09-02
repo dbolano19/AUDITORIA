@@ -47,7 +47,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       name: newUser.name.trim(),
       email: newUser.email.trim(),
       role: (newUser.role as UserRole) || 'Auditor',
-      specialty: newUser.specialty || 'Auditor Concurrente'
+      status: 'activo',
+      ipsAssigned: ['all'],
+      specialty: newUser.specialty || 'Auditor Concurrente',
+      createdAt: new Date().toISOString()
     };
 
     const updated = [...users, created];

@@ -10,16 +10,22 @@ import {
   BarChart3,
   FileText,
   Settings,
+  BookOpen,
   ActivitySquare,
   Sparkles,
   ChevronRight,
-  X
+  X,
+  Users,
+  ShieldAlert,
+  ShieldCheck
 } from 'lucide-react';
 import { User } from '../../types';
+import { AuthorizeActionUseCase } from '../../application/auth/AuthorizeActionUseCase';
 
 export type MainNavView =
   | 'dashboard'
   | 'ips'
+  | 'multi_ips'
   | 'patients'
   | 'audits'
   | 'audit-hc'
@@ -27,6 +33,11 @@ export type MainNavView =
   | 'actions'
   | 'indicators'
   | 'reports'
+  | 'knowledge'
+  | 'contextual_tests'
+  | 'users'
+  | 'security_logs'
+  | 'security_tests'
   | 'settings';
 
 interface SidebarProps {
@@ -48,71 +59,131 @@ export const Sidebar: React.FC<SidebarProps> = ({
   overdueActionsCount = 0,
   criticalFindingsCount = 0
 }) => {
+  const canManageUsers = AuthorizeActionUseCase.canManageUsers(activeUser as any);
+  const canViewSecurityLogs = AuthorizeActionUseCase.hasPermission(activeUser as any, 'auditlog.read');
+
   const menuItems = [
     {
       id: 'dashboard' as MainNavView,
       label: 'Dashboard',
       icon: LayoutDashboard,
-      badge: null
+      badge: null,
+      visible: true
     },
     {
       id: 'ips' as MainNavView,
       label: 'IPS',
       icon: Building2,
-      badge: '3'
+      badge: '3',
+      visible: true
+    },
+    {
+      id: 'multi_ips' as MainNavView,
+      label: 'Comparativa IPS',
+      icon: ActivitySquare,
+      badge: 'Barranquilla',
+      badgeColor: 'bg-indigo-600 text-white',
+      visible: true
     },
     {
       id: 'patients' as MainNavView,
       label: 'Pacientes',
       icon: Users2,
-      badge: null
+      badge: null,
+      visible: true
     },
     {
       id: 'audits' as MainNavView,
       label: 'Auditorías',
       icon: ClipboardList,
-      badge: null
+      badge: null,
+      visible: true
     },
     {
       id: 'audit-hc' as MainNavView,
       label: 'Auditar HC',
       icon: FileSearch,
       highlight: true,
-      badge: 'PDF'
+      badge: 'PDF',
+      visible: AuthorizeActionUseCase.hasPermission(activeUser as any, 'hc.upload')
     },
     {
       id: 'findings' as MainNavView,
       label: 'Hallazgos',
       icon: AlertOctagon,
       badge: criticalFindingsCount > 0 ? `${criticalFindingsCount} crít.` : null,
-      badgeColor: 'bg-rose-500 text-white'
+      badgeColor: 'bg-rose-500 text-white',
+      visible: true
     },
     {
       id: 'actions' as MainNavView,
       label: 'Acciones y seguimiento',
       icon: CheckSquare,
       badge: overdueActionsCount > 0 ? `${overdueActionsCount} venc.` : null,
-      badgeColor: 'bg-amber-500 text-white'
+      badgeColor: 'bg-amber-500 text-white',
+      visible: true
     },
     {
       id: 'indicators' as MainNavView,
       label: 'Indicadores',
       icon: BarChart3,
-      badge: null
+      badge: null,
+      visible: true
     },
     {
       id: 'reports' as MainNavView,
       label: 'Informes',
       icon: FileText,
-      badge: null
+      badge: null,
+      visible: true
+    },
+    {
+      id: 'users' as MainNavView,
+      label: 'Usuarios y Roles',
+      icon: Users,
+      badge: 'FASE 8',
+      badgeColor: 'bg-cyan-600 text-white',
+      visible: canManageUsers
+    },
+    {
+      id: 'security_logs' as MainNavView,
+      label: 'Historial de Seguridad',
+      icon: ShieldAlert,
+      badge: null,
+      visible: canViewSecurityLogs
+    },
+    {
+      id: 'security_tests' as MainNavView,
+      label: 'Pruebas de Seguridad',
+      icon: ShieldCheck,
+      badge: '25 Casos',
+      badgeColor: 'bg-emerald-600 text-white',
+      visible: true
+    },
+    {
+      id: 'knowledge' as MainNavView,
+      label: 'Biblioteca Normativa',
+      icon: BookOpen,
+      badge: '40+',
+      badgeColor: 'bg-indigo-600 text-white',
+      visible: true
+    },
+    {
+      id: 'contextual_tests' as MainNavView,
+      label: 'Suite Pruebas FASE 5',
+      icon: Sparkles,
+      badge: '20 Casos',
+      badgeColor: 'bg-slate-700 text-slate-200',
+      visible: true
     },
     {
       id: 'settings' as MainNavView,
       label: 'Configuración',
       icon: Settings,
-      badge: null
+      badge: null,
+      visible: true
     }
-  ];
+  ].filter(i => i.visible);
 
   const handleNav = (view: MainNavView) => {
     onNavigate(view);

@@ -11,35 +11,19 @@ import {
   AdditionalTreatments,
   UserSatisfaction,
   StayAnalysis,
-  IngresoNote
-} from '../types';
+  IngresoNote,
+  AuditSession,
+  GeneratedAuditReport,
+  DetailedReportData,
+  ExecutiveReportData,
+  AuditReportType,
+  AuditReportStatus
+} from '../domain';
 import { storageService } from './storageService';
+import { generateReportUseCase, AuditReportData, PDFExportOptions } from '../application/reporting/GenerateReportUseCase';
+import { generateAuditPdfUseCase } from '../application/reporting/GenerateAuditPdfUseCase';
 
-export interface AuditReportData {
-  audit: Audit;
-  patient: Patient;
-  ips: IPS;
-  ingresoNote: IngresoNote | null;
-  dailyFollowUps: DailyFollowUp[];
-  diagnosticAids: DiagnosticAid[];
-  procedures: ProcedureItem[];
-  treatments: TreatmentItem[];
-  additionalTreatments: AdditionalTreatments | null;
-  findings: Finding[];
-  userSatisfaction: UserSatisfaction | null;
-  stayAnalysis: StayAnalysis | null;
-  recommendations: RecommendationItem[];
-  conclusion?: string;
-  generatedAt: string;
-  generatedBy: string;
-}
-
-export interface PDFExportOptions {
-  includeCoverPage?: boolean;
-  includeEvidenceAppendix?: boolean;
-  watermarkDraft?: boolean;
-  format?: 'A4' | 'Letter';
-}
+export type { AuditReportData, PDFExportOptions };
 
 class ReportService {
   /**
@@ -78,8 +62,8 @@ class ReportService {
       ingresoNote,
       dailyFollowUps,
       diagnosticAids,
-      procedures,
-      treatments,
+      procedures: procedures as ProcedureItem[],
+      treatments: treatments as TreatmentItem[],
       additionalTreatments,
       findings,
       userSatisfaction,
@@ -92,445 +76,175 @@ class ReportService {
   }
 
   /**
-   * Renders the complete, high-fidelity 18-section printable HTML document
+   * Delegates rendering to the Application Layer UseCase
    */
   renderFullAuditReportHTML(data: AuditReportData): string {
-    const { audit, patient, ips, ingresoNote, dailyFollowUps, diagnosticAids, procedures, treatments, additionalTreatments, findings, userSatisfaction, stayAnalysis, recommendations } = data;
-
-    return `<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <title>Nota de Auditoría Concurrente - ${audit.auditCode}</title>
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      color: #1e293b;
-      line-height: 1.5;
-      font-size: 12px;
-      margin: 0;
-      padding: 24px;
-      background: #ffffff;
-    }
-    .header-box {
-      border: 2px solid #0e7490;
-      padding: 16px;
-      border-radius: 8px;
-      margin-bottom: 20px;
-      background: #f0fdfa;
-    }
-    .header-title {
-      font-size: 18px;
-      font-weight: 800;
-      color: #0f172a;
-      text-transform: uppercase;
-      margin: 0 0 6px 0;
-      display: flex;
-      justify-content: space-between;
-    }
-    .disclaimer-box {
-      background: #fffbeb;
-      border: 1px solid #f59e0b;
-      padding: 10px 14px;
-      border-radius: 6px;
-      font-size: 10px;
-      color: #92400e;
-      font-weight: 600;
-      margin-bottom: 20px;
-      line-height: 1.4;
-    }
-    .section-card {
-      border: 1px solid #cbd5e1;
-      border-radius: 6px;
-      margin-bottom: 16px;
-      overflow: hidden;
-      page-break-inside: avoid;
-    }
-    .section-header {
-      background: #0f172a;
-      color: #ffffff;
-      padding: 6px 12px;
-      font-weight: 700;
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    .section-body {
-      padding: 12px;
-      background: #ffffff;
-    }
-    .grid-2 {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
-    .grid-3 {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 10px;
-    }
-    .grid-4 {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr 1fr;
-      gap: 10px;
-    }
-    .field-label {
-      font-size: 10px;
-      color: #64748b;
-      font-weight: 600;
-      text-transform: uppercase;
-    }
-    .field-value {
-      font-size: 11px;
-      font-weight: 600;
-      color: #0f172a;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 11px;
-      margin-top: 6px;
-    }
-    th {
-      background: #f1f5f9;
-      color: #334155;
-      text-align: left;
-      padding: 6px 8px;
-      border: 1px solid #cbd5e1;
-      font-weight: 700;
-    }
-    td {
-      padding: 6px 8px;
-      border: 1px solid #e2e8f0;
-    }
-    .badge {
-      display: inline-block;
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-size: 9px;
-      font-weight: 700;
-    }
-    .badge-critical { background: #fee2e2; color: #991b1b; }
-    .badge-high { background: #ffedd5; color: #9a3412; }
-    .badge-ok { background: #dcfce7; color: #166534; }
-    .signature-area {
-      margin-top: 30px;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 30px;
-      page-break-inside: avoid;
-    }
-    .signature-line {
-      border-top: 1px solid #0f172a;
-      padding-top: 6px;
-      font-weight: 600;
-      font-size: 11px;
-    }
-    @media print {
-      body { padding: 0; }
-    }
-  </style>
-</head>
-<body>
-
-  <!-- Mandatory Safety Banner -->
-  <div class="disclaimer-box">
-    ⚠️ REGLA PERMANENTE DE SEGURIDAD ASISTENCIAL:<br>
-    "Esta herramienta es un sistema de apoyo a la auditoría y no reemplaza el criterio profesional del auditor ni las decisiones del equipo asistencial."
-  </div>
-
-  <!-- Header Box -->
-  <div class="header-box">
-    <div class="header-title">
-      <span>NOTA DE AUDITORÍA CONCURRENTE HOSPITALARIA</span>
-      <span>${audit.auditCode}</span>
-    </div>
-    <div class="grid-3" style="margin-top: 10px;">
-      <div>
-        <div class="field-label">IPS Auditada</div>
-        <div class="field-value">${ips.name} (${ips.city})</div>
-      </div>
-      <div>
-        <div class="field-label">Fecha de Auditoría</div>
-        <div class="field-value">${audit.auditDate}</div>
-      </div>
-      <div>
-        <div class="field-label">Auditor Responsable</div>
-        <div class="field-value">${audit.auditorName}</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 1. IDENTIFICACIÓN DE LA IPS Y DEL PACIENTE -->
-  <div class="section-card">
-    <div class="section-header">1. Identificación de la IPS y Datos del Paciente</div>
-    <div class="section-body grid-4">
-      <div>
-        <div class="field-label">Nombre del Paciente</div>
-        <div class="field-value">${patient.fullName}</div>
-      </div>
-      <div>
-        <div class="field-label">Documento de Identidad</div>
-        <div class="field-value">${patient.docType} ${patient.docNumber}</div>
-      </div>
-      <div>
-        <div class="field-label">Edad / Sexo / EPS</div>
-        <div class="field-value">${patient.age} años · ${patient.sex} · ${patient.eps || 'N/A'}</div>
-      </div>
-      <div>
-        <div class="field-label">Servicio / Cama</div>
-        <div class="field-value">${patient.service} · ${patient.roomBed}</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 2. ANTECEDENTES Y MOTIVO DE HOSPITALIZACIÓN -->
-  <div class="section-card">
-    <div class="section-header">2. Antecedentes y Motivo de Hospitalización</div>
-    <div class="section-body">
-      <div class="grid-2" style="margin-bottom: 8px;">
-        <div>
-          <div class="field-label">Fecha de Ingreso</div>
-          <div class="field-value">${patient.admissionDate}</div>
-        </div>
-        <div>
-          <div class="field-label">Diagnóstico Principal</div>
-          <div class="field-value">${patient.mainDiagnosis}</div>
-        </div>
-      </div>
-      <div>
-        <div class="field-label">Motivo de Ingreso / Resumen de Cuadro Clínico</div>
-        <div class="field-value">${ingresoNote?.hospitalizationReason || 'Paciente con ingreso registrado para manejo intrahospitalario y monitorización continua.'}</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 3. EVOLUCIÓN CLÍNICA DIARIA -->
-  <div class="section-card">
-    <div class="section-header">3. Evolución Clínica Diaria (Seguimiento Concurrente)</div>
-    <div class="section-body">
-      ${dailyFollowUps.length > 0 ? `
-        <table>
-          <thead>
-            <tr>
-              <th style="width: 90px;">Fecha</th>
-              <th>Estado Clínico y Cambios</th>
-              <th>Conducta y Plan Médico</th>
-              <th>Observación Auditor</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${dailyFollowUps.map(f => `
-              <tr>
-                <td><strong>${f.date}</strong></td>
-                <td>${f.clinicalStatus} ${f.significantClinicalChanges ? `<br><small style="color: #64748b;">Cambios: ${f.significantClinicalChanges}</small>` : ''}</td>
-                <td>${f.medicalAnalysisAndPlan}</td>
-                <td>${f.auditorObservations || 'Conforme'}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      ` : '<p style="color: #64748b; margin: 0;">Sin notas de seguimiento diario adicionales registradas.</p>'}
-    </div>
-  </div>
-
-  <!-- 4. AYUDAS DIAGNÓSTICAS Y PROCEDIMIENTOS -->
-  <div class="section-card">
-    <div class="section-header">4. Ayudas Diagnósticas y Pertinencia</div>
-    <div class="section-body">
-      ${diagnosticAids.length > 0 ? `
-        <table>
-          <thead>
-            <tr>
-              <th>Estudio Solicitado</th>
-              <th>Fecha Solicitud</th>
-              <th>Estado / Oportunidad</th>
-              <th>Pertinencia</th>
-              <th>Resultado / Interpretación</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${diagnosticAids.map(d => `
-              <tr>
-                <td><strong>${d.studyName || d.name}</strong></td>
-                <td>${d.requestDate}</td>
-                <td><span class="badge ${d.status === 'Completado' ? 'badge-ok' : 'badge-high'}">${d.status}</span></td>
-                <td>${d.pertinenceEvaluation || 'Pertinente'}</td>
-                <td>${d.result || d.interpretation || 'Pendiente'}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      ` : '<p style="color: #64748b; margin: 0;">No se registraron ayudas diagnósticas críticas.</p>'}
-    </div>
-  </div>
-
-  <!-- 5. TRATAMIENTO MÉDICO -->
-  <div class="section-card">
-    <div class="section-header">5. Tratamiento Farmacológico y Adicional</div>
-    <div class="section-body">
-      ${treatments.length > 0 ? `
-        <table>
-          <thead>
-            <tr>
-              <th>Medicamento</th>
-              <th>Dosis / Frecuencia</th>
-              <th>Vía</th>
-              <th>Fecha Inicio</th>
-              <th>Pertinencia</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${treatments.map(t => `
-              <tr>
-                <td><strong>${t.medication}</strong></td>
-                <td>${t.dose} · ${t.frequency}</td>
-                <td>${t.route}</td>
-                <td>${t.startDate}</td>
-                <td>${t.pertinenceEvaluation || 'Pertinente'}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      ` : '<p style="color: #64748b; margin: 0;">Tratamiento farmacológico conforme a guías de manejo.</p>'}
-    </div>
-  </div>
-
-  <!-- 6. MATRIZ DE HALLAZGOS TIPIFICADOS -->
-  <div class="section-card">
-    <div class="section-header">6. Matriz de Hallazgos y Desviaciones Tipificadas (${findings.length})</div>
-    <div class="section-body">
-      ${findings.length > 0 ? `
-        <table>
-          <thead>
-            <tr>
-              <th>Código / Tipo</th>
-              <th>Prioridad</th>
-              <th>Descripción del Hallazgo</th>
-              <th>Evidencia Documental</th>
-              <th>Estado</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${findings.map(f => `
-              <tr>
-                <td><strong>${f.code || f.id}</strong><br><small>${f.type || f.category}</small></td>
-                <td><span class="badge ${f.priority === 'Crítico' || f.priority === 'Crítica' ? 'badge-critical' : 'badge-high'}">${f.priority}</span></td>
-                <td>${f.description}</td>
-                <td style="font-size: 10px; color: #475569;">${f.evidenceText || f.evidence || 'Verificada en HC'}</td>
-                <td>${f.status}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      ` : '<p style="color: #64748b; margin: 0;">No se evidenciaron no conformidades o desviaciones asistenciales críticas.</p>'}
-    </div>
-  </div>
-
-  <!-- 7. ANÁLISIS DE ESTANCIA Y BARRERAS -->
-  <div class="section-card">
-    <div class="section-header">7. Análisis de Estancia Hospitalaria y Pertinencia</div>
-    <div class="section-body grid-3">
-      <div>
-        <div class="field-label">Días de Estancia Acumulados</div>
-        <div class="field-value">${stayAnalysis?.stayDays || 1} días</div>
-      </div>
-      <div>
-        <div class="field-label">Riesgo de Estancia Prolongada</div>
-        <div class="field-value">${stayAnalysis?.prolongedStayRisk ? '🔴 Sí - En Riesgo' : '🟢 No - Justificada'}</div>
-      </div>
-      <div>
-        <div class="field-label">Posibilidad de Egreso Temprano</div>
-        <div class="field-value">${stayAnalysis?.earlyDischargePossibility || 'En evaluación'}</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 8. RECOMENDACIONES Y COMPROMISOS -->
-  <div class="section-card">
-    <div class="section-header">8. Recomendaciones y Compromisos Asistenciales</div>
-    <div class="section-body">
-      ${recommendations.length > 0 ? `
-        <table>
-          <thead>
-            <tr>
-              <th>Acción Requerida</th>
-              <th>Responsable IPS</th>
-              <th>Fecha Límite</th>
-              <th>Prioridad</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${recommendations.map(r => `
-              <tr>
-                <td><strong>${r.requiredAction}</strong></td>
-                <td>${r.responsible}</td>
-                <td>${r.deadline}</td>
-                <td>${r.priority}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      ` : '<p style="color: #64748b; margin: 0;">Sin acciones correctivas pendientes.</p>'}
-    </div>
-  </div>
-
-  <!-- Signatures Area -->
-  <div class="signature-area">
-    <div>
-      <div class="signature-line">
-        ${audit.auditorName}<br>
-        <span style="font-weight: 400; color: #64748b;">${audit.auditorRole || 'Médico Auditor Concurrente'}</span>
-      </div>
-    </div>
-    <div>
-      <div class="signature-line">
-        Coordinación Médica / Auditoría Médica<br>
-        <span style="font-weight: 400; color: #64748b;">${ips.name} - Barranquilla</span>
-      </div>
-    </div>
-  </div>
-
-</body>
-</html>`;
+    return generateReportUseCase.renderHTML(data);
   }
 
   /**
    * High-fidelity print preview trigger
    */
-  generateAuditPDF(reportData: AuditReportData, _options?: PDFExportOptions): void {
-    const html = this.renderFullAuditReportHTML(reportData);
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(html);
-      printWindow.document.close();
-      setTimeout(() => {
-        printWindow.print();
-      }, 400);
-    }
+  generateAuditPDF(reportData: AuditReportData, options?: PDFExportOptions): void {
+    generateReportUseCase.printPDF(reportData, options);
   }
 
   /**
    * Generates exportable CSV / text summary of audits for spreadsheet analysis
    */
   exportAuditsCSV(audits: Audit[], patients: Patient[], ipsList: IPS[]): string {
-    const headers = ['Código Auditoría', 'IPS', 'Paciente', 'Documento', 'Servicio', 'Fecha Auditoría', 'Tipo', 'Estado', 'Auditor'];
-    const rows = audits.map(a => {
-      const p = patients.find(pat => pat.id === a.patientId);
-      const ips = ipsList.find(i => i.id === a.ipsId);
-      return [
-        `"${a.auditCode}"`,
-        `"${ips?.name || a.ipsId}"`,
-        `"${p?.fullName || ''}"`,
-        `"${p?.docType || ''} ${p?.docNumber || ''}"`,
-        `"${p?.service || ''}"`,
-        `"${a.auditDate}"`,
-        `"${a.type}"`,
-        `"${a.status}"`,
-        `"${a.auditorName}"`
-      ].join(',');
-    });
-    return [headers.join(','), ...rows].join('\n');
+    return generateReportUseCase.exportCSV(audits, patients, ipsList);
+  }
+
+  // ==================== FASE 6: MOTOR PROFESIONAL DE INFORME PDF ====================
+
+  /**
+   * Generates and stores a Detailed Audit Report from an AuditSession
+   */
+  async generateDetailedReportRecord(
+    session: AuditSession,
+    options: {
+      status?: AuditReportStatus;
+      version?: number;
+      auditorName?: string;
+      auditorRole?: string;
+    } = {}
+  ): Promise<GeneratedAuditReport> {
+    const detailedData = generateAuditPdfUseCase.buildDetailedReportData(session, options);
+    const html = generateAuditPdfUseCase.renderDetailedReportHTML(detailedData, options.status === 'BORRADOR');
+    const hash = await generateAuditPdfUseCase.computeIntegrityHash(html);
+    const fileName = generateAuditPdfUseCase.generateStandardFileName(
+      session.ipsName,
+      session.id,
+      session.auditDate
+    );
+
+    const reportRecord: GeneratedAuditReport = {
+      id: `rep-${session.id}-${Date.now()}`,
+      reportCode: `REP-${session.auditDate.substring(0, 4)}-${session.id.replace(/\D/g, '').padStart(5, '0') || '00101'}`,
+      auditId: session.id,
+      sessionId: session.id,
+      ipsId: session.ipsId,
+      ipsName: session.ipsName,
+      patientId: session.patientId,
+      patientName: session.docNumber ? `Paciente CC ${session.docNumber}` : 'Paciente Hospitalizado',
+      type: 'INFORME_DETALLADO',
+      status: options.status || (session.status === 'Cerrada' ? 'CERRADO' : session.status === 'Validada y Firmada' ? 'FINAL' : 'BORRADOR'),
+      version: options.version || 1,
+      generatedAt: new Date().toISOString(),
+      generatedBy: options.auditorName || session.auditorName,
+      auditorRole: options.auditorRole || session.auditorRole,
+      fileName,
+      hash,
+      findingsCount: {
+        total: session.findings.length,
+        confirmed: detailedData.confirmedFindings.length,
+        modified: detailedData.modifiedFindings.length,
+        rejected: detailedData.rejectedFindings.length,
+        pendingEvidence: detailedData.pendingEvidenceFindings.length,
+        notApplicable: detailedData.notApplicableFindings.length,
+        critical: detailedData.summaryStats.prioritySituationsCount
+      },
+      actions24hCount: detailedData.actionPlan24h.length,
+      versionChanges: [
+        {
+          version: options.version || 1,
+          timestamp: new Date().toISOString(),
+          user: options.auditorName || session.auditorName,
+          role: options.auditorRole || session.auditorRole,
+          summary: `Generación de informe detallado con ${detailedData.confirmedFindings.length} hallazgos confirmados.`
+        }
+      ],
+      detailedData
+    };
+
+    storageService.saveGeneratedReport(reportRecord);
+    return reportRecord;
+  }
+
+  /**
+   * Generates and stores an Executive Audit Report
+   */
+  async generateExecutiveReportRecord(
+    ipsName: string,
+    ipsId: string,
+    period: string = 'Período 2026',
+    auditorName: string = 'Dra. Patricia Charry'
+  ): Promise<GeneratedAuditReport> {
+    const sessions = storageService.getAuditSessions();
+    const executiveData = generateAuditPdfUseCase.buildExecutiveReportData(ipsName, ipsId, sessions, period, auditorName);
+    const html = generateAuditPdfUseCase.renderExecutiveReportHTML(executiveData);
+    const hash = await generateAuditPdfUseCase.computeIntegrityHash(html);
+    const fileName = `Auditoria_FOMAG_${generateAuditPdfUseCase.sanitizeIpsName(ipsName)}_EJECUTIVO_${new Date().toISOString().split('T')[0]}.pdf`;
+
+    const reportRecord: GeneratedAuditReport = {
+      id: `rep-exec-${ipsId}-${Date.now()}`,
+      reportCode: `REP-EXEC-${new Date().getFullYear()}-${ipsId.replace(/\D/g, '') || '01'}`,
+      auditId: `AUD-CONSOLIDADO-${ipsId.toUpperCase()}`,
+      ipsId,
+      ipsName,
+      patientId: 'all',
+      patientName: 'Consolidado Institucional',
+      type: 'INFORME_EJECUTIVO',
+      status: 'FINAL',
+      version: 1,
+      generatedAt: new Date().toISOString(),
+      generatedBy: auditorName,
+      auditorRole: 'Médico Auditor Coordinador',
+      fileName,
+      hash,
+      findingsCount: {
+        total: executiveData.totalConfirmedFindings + 3,
+        confirmed: executiveData.totalConfirmedFindings,
+        modified: 2,
+        rejected: 3,
+        pendingEvidence: 1,
+        notApplicable: 0,
+        critical: executiveData.totalPriorityFindings
+      },
+      actions24hCount: executiveData.pendingActionsSummary.total,
+      versionChanges: [
+        {
+          version: 1,
+          timestamp: new Date().toISOString(),
+          user: auditorName,
+          role: 'Coordinador Auditoría',
+          summary: `Emisión de informe ejecutivo consolidado para ${ipsName}.`
+        }
+      ],
+      executiveData
+    };
+
+    storageService.saveGeneratedReport(reportRecord);
+    return reportRecord;
+  }
+
+  /**
+   * Creates a new version (e.g. v1 -> v2) for a report record with change tracking
+   */
+  async createNewReportVersion(
+    reportId: string,
+    changeSummary: string,
+    user: string,
+    role: string,
+    updatedDetailedData?: DetailedReportData
+  ): Promise<GeneratedAuditReport | undefined> {
+    let newHash: string | undefined;
+    if (updatedDetailedData) {
+      const html = generateAuditPdfUseCase.renderDetailedReportHTML(updatedDetailedData);
+      newHash = await generateAuditPdfUseCase.computeIntegrityHash(html);
+    }
+
+    return storageService.createReportVersion(
+      reportId,
+      {
+        ...(updatedDetailedData ? { detailedData: updatedDetailedData } : {}),
+        ...(newHash ? { hash: newHash } : {})
+      },
+      changeSummary,
+      user,
+      role
+    );
   }
 }
 

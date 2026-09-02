@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 import { storageService } from '../../services/storageService';
 import { Finding, FindingType, FindingPriority, FindingStatus, User } from '../../types';
+import { AuthorizeActionUseCase } from '../../application/auth/AuthorizeActionUseCase';
+import { AuditSecurityEventUseCase } from '../../application/security/AuditSecurityEventUseCase';
 
 interface FindingsManagementViewProps {
   onOpenExpediente: (auditId: string) => void;
@@ -39,11 +41,36 @@ export const FindingsManagementView: React.FC<FindingsManagementViewProps> = ({
   };
 
   const handleUpdateStatus = (findingId: string, status: FindingStatus) => {
+    if (!AuthorizeActionUseCase.hasPermission(activeUser as any, 'findings.validate')) {
+      alert(`Acceso denegado: El rol "${activeUser.role}" no tiene autorización para cambiar el estado de los hallazgos.`);
+      return;
+    }
+
+    const finding = findings.find(f => f.id === findingId);
+    const prevStatus = finding ? finding.status : undefined;
+
     storageService.updateFindingStatus(findingId, status);
+
+    AuditSecurityEventUseCase.logFindingTraceability({
+      findingId,
+      previousStatus: prevStatus,
+      newStatus: status,
+      modifiedByUserId: activeUser.id,
+      modifiedByUserName: activeUser.name,
+      modifiedByUserRole: activeUser.role,
+      comment: `Actualización de estado en matriz de hallazgos a "${status}"`,
+      reason: 'Validación médica de auditoría concurrente'
+    });
+
     refreshList();
   };
 
   const filtered = findings.filter(f => {
+    // Phase 8: Multi-IPS Segregation
+    if (!AuthorizeActionUseCase.canAccessIPS(activeUser as any, f.ipsId)) {
+      return false;
+    }
+
     const patient = patients.find(p => p.id === f.patientId);
     const matchesSearch =
       f.code.toLowerCase().includes(searchTerm.toLowerCase()) ||

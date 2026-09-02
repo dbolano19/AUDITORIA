@@ -16,7 +16,19 @@ import {
   RecommendationItem,
   AuditAction,
   AuditTrail,
-  UserRole
+  UserRole,
+  KnowledgeSource,
+  AuditCriterion,
+  SourceVerificationLog,
+  ValidityStatus,
+  AuditSession,
+  ContextualFinding,
+  ActionPlan24Hour,
+  ConflictReview,
+  IPSAggregatedMetrics,
+  AuditorValidationStatus,
+  GeneratedAuditReport,
+  DashboardSnapshot
 } from '../types';
 
 import {
@@ -38,6 +50,9 @@ import {
   INITIAL_ACTIONS,
   INITIAL_AUDIT_TRAIL
 } from '../data/seedData';
+import { INITIAL_KNOWLEDGE_SOURCES, INITIAL_AUDIT_CRITERIA } from '../data/masterKnowledgeSources';
+import { INITIAL_AUDIT_SESSIONS } from '../data/seedContextualSessions';
+import { INITIAL_GENERATED_REPORTS } from '../data/seedReports';
 
 const STORAGE_KEYS = {
   IPS: 'auditoria_ia_ips',
@@ -57,7 +72,13 @@ const STORAGE_KEYS = {
   STAY_ANALYSIS: 'auditoria_ia_stay_analysis',
   RECOMMENDATIONS: 'auditoria_ia_recommendations',
   ACTIONS: 'auditoria_ia_actions',
-  AUDIT_TRAIL: 'auditoria_ia_audit_trail'
+  AUDIT_TRAIL: 'auditoria_ia_audit_trail',
+  KNOWLEDGE_SOURCES: 'auditoria_ia_knowledge_sources',
+  AUDIT_CRITERIA: 'auditoria_ia_audit_criteria',
+  VERIFICATION_LOGS: 'auditoria_ia_verification_logs',
+  AUDIT_SESSIONS: 'auditoria_ia_audit_sessions',
+  GENERATED_REPORTS: 'auditoria_ia_generated_reports',
+  DASHBOARD_SNAPSHOTS: 'auditoria_ia_dashboard_snapshots'
 };
 
 class StorageService {
@@ -754,6 +775,477 @@ class StorageService {
     return 'green';
   }
 
+  // --- KNOWLEDGE LIBRARY & AUDIT CRITERIA (FASE 4) ---
+  getKnowledgeSources(): KnowledgeSource[] {
+    return this.get<KnowledgeSource[]>(STORAGE_KEYS.KNOWLEDGE_SOURCES, INITIAL_KNOWLEDGE_SOURCES);
+  }
+
+  saveKnowledgeSources(sources: KnowledgeSource[]): void {
+    this.set(STORAGE_KEYS.KNOWLEDGE_SOURCES, sources);
+  }
+
+  getKnowledgeSourceById(id: string): KnowledgeSource | undefined {
+    return this.getKnowledgeSources().find(s => s.id.toLowerCase() === id.toLowerCase());
+  }
+
+  addKnowledgeSource(source: KnowledgeSource): void {
+    const sources = this.getKnowledgeSources();
+    const existingIndex = sources.findIndex(s => s.id.toLowerCase() === source.id.toLowerCase());
+    if (existingIndex >= 0) {
+      sources[existingIndex] = source;
+    } else {
+      sources.unshift(source);
+    }
+    this.saveKnowledgeSources(sources);
+    this.logAuditTrail('CREACION_FUENTE', 'KnowledgeSource', source.id, undefined, source.name, 'Fuente normativa creada/incorporada');
+  }
+
+  updateKnowledgeSource(source: KnowledgeSource): void {
+    const sources = this.getKnowledgeSources();
+    const index = sources.findIndex(s => s.id.toLowerCase() === source.id.toLowerCase());
+    if (index >= 0) {
+      sources[index] = { ...source, updatedAt: new Date().toISOString() };
+      this.saveKnowledgeSources(sources);
+      this.logAuditTrail('ACTUALIZACION_FUENTE', 'KnowledgeSource', source.id, undefined, source.name, 'Fuente normativa actualizada');
+    }
+  }
+
+  deleteKnowledgeSource(id: string): void {
+    const sources = this.getKnowledgeSources().filter(s => s.id.toLowerCase() !== id.toLowerCase());
+    this.saveKnowledgeSources(sources);
+    this.logAuditTrail('ELIMINACION_FUENTE', 'KnowledgeSource', id, undefined, undefined, 'Fuente normativa eliminada');
+  }
+
+  getAuditCriteria(): AuditCriterion[] {
+    return this.get<AuditCriterion[]>(STORAGE_KEYS.AUDIT_CRITERIA, INITIAL_AUDIT_CRITERIA);
+  }
+
+  saveAuditCriteria(criteria: AuditCriterion[]): void {
+    this.set(STORAGE_KEYS.AUDIT_CRITERIA, criteria);
+  }
+
+  getAuditCriterionById(id: string): AuditCriterion | undefined {
+    return this.getAuditCriteria().find(c => c.criterionId.toLowerCase() === id.toLowerCase());
+  }
+
+  addAuditCriterion(criterion: AuditCriterion): void {
+    const criteria = this.getAuditCriteria();
+    const index = criteria.findIndex(c => c.criterionId.toLowerCase() === criterion.criterionId.toLowerCase());
+    if (index >= 0) {
+      criteria[index] = criterion;
+    } else {
+      criteria.push(criterion);
+    }
+    this.saveAuditCriteria(criteria);
+
+    // Also link to source
+    const source = this.getKnowledgeSourceById(criterion.sourceId);
+    if (source && !source.criteria.includes(criterion.criterionId)) {
+      source.criteria.push(criterion.criterionId);
+      this.updateKnowledgeSource(source);
+    }
+
+    this.logAuditTrail('CREACION_CRITERIO', 'AuditCriterion', criterion.criterionId, undefined, criterion.title, 'Criterio de auditoría creado');
+  }
+
+  updateAuditCriterion(criterion: AuditCriterion): void {
+    const criteria = this.getAuditCriteria();
+    const index = criteria.findIndex(c => c.criterionId.toLowerCase() === criterion.criterionId.toLowerCase());
+    if (index >= 0) {
+      criteria[index] = criterion;
+      this.saveAuditCriteria(criteria);
+      this.logAuditTrail('ACTUALIZACION_CRITERIO', 'AuditCriterion', criterion.criterionId, undefined, criterion.title, 'Criterio de auditoría actualizado');
+    }
+  }
+
+  getSourceVerificationLogs(): SourceVerificationLog[] {
+    return this.get<SourceVerificationLog[]>(STORAGE_KEYS.VERIFICATION_LOGS, []);
+  }
+
+  verifySource(
+    sourceId: string,
+    userId: string,
+    userName: string,
+    validityFound: ValidityStatus,
+    versionFound: string,
+    observations: string,
+    decision: 'APROBADO_PARA_AUDITORIA' | 'REQUIERE_VERIFICACION' | 'NO_UTILIZAR'
+  ): SourceVerificationLog {
+    const log: SourceVerificationLog = {
+      id: `log-verif-${Date.now()}`,
+      sourceId,
+      checkedAt: new Date().toISOString(),
+      checkedBy: userName,
+      urlChecked: this.getKnowledgeSourceById(sourceId)?.officialUrl || '',
+      validityFound,
+      versionFound,
+      observations,
+      decision
+    };
+
+    const logs = this.getSourceVerificationLogs();
+    logs.unshift(log);
+    this.set(STORAGE_KEYS.VERIFICATION_LOGS, logs);
+
+    // Update source status
+    const source = this.getKnowledgeSourceById(sourceId);
+    if (source) {
+      source.validityStatus = validityFound;
+      source.validityCheckedAt = log.checkedAt;
+      source.validityCheckedBy = userName;
+      source.validityObservations = observations;
+      source.version = versionFound || source.version;
+      source.auditUsable = decision === 'APROBADO_PARA_AUDITORIA';
+      this.updateKnowledgeSource(source);
+    }
+
+    this.logAuditTrail('VERIFICACION_FUENTE', 'KnowledgeSource', sourceId, undefined, validityFound, `Verificación oficial: ${decision}`);
+    return log;
+  }
+
+  importSourcesFromCsv(csvText: string): { imported: number; updated: number; errors: string[] } {
+    const lines = csvText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    if (lines.length < 2) return { imported: 0, updated: 0, errors: ['CSV vacío o sin filas de datos'] };
+
+    const sources = this.getKnowledgeSources();
+    let imported = 0;
+    let updated = 0;
+    const errors: string[] = [];
+
+    // Parse header to map columns
+    const header = lines[0].split(',').map(h => h.trim().toLowerCase());
+    const idIdx = header.findIndex(h => h === 'id');
+    const docIdx = header.findIndex(h => h.includes('documento') || h.includes('nombre'));
+    const entIdx = header.findIndex(h => h.includes('entidad'));
+    const catIdx = header.findIndex(h => h.includes('carpeta') || h.includes('categoria'));
+    const typeIdx = header.findIndex(h => h.includes('tipo'));
+    const prioIdx = header.findIndex(h => h.includes('prioridad'));
+    const valIdx = header.findIndex(h => h.includes('estado') || h.includes('vigencia'));
+    const urlIdx = header.findIndex(h => h.includes('url') || h.includes('enlace'));
+
+    for (let i = 1; i < lines.length; i++) {
+      try {
+        const row = lines[i].split(',').map(c => c.trim());
+        const id = row[idIdx] || `SRC-${Date.now()}-${i}`;
+        const name = row[docIdx] || 'Documento sin título';
+        const entity = row[entIdx] || 'FOMAG';
+        const categoryRaw = row[catIdx] || '07_OTROS';
+        const type = (row[typeIdx] || 'Otro') as any;
+        const priority = (row[prioIdx] || 'ALTA') as any;
+        const validityRaw = row[valIdx] || 'VIGENCIA_POR_VERIFICAR';
+        const officialUrl = row[urlIdx] || '';
+
+        let validityStatus: ValidityStatus = 'VIGENCIA_POR_VERIFICAR';
+        if (validityRaw.toLowerCase().includes('vigente') && !validityRaw.toLowerCase().includes('modifica')) {
+          validityStatus = 'VIGENTE';
+        } else if (validityRaw.toLowerCase().includes('modifica')) {
+          validityStatus = 'MODIFICADA';
+        } else if (validityRaw.toLowerCase().includes('deroga')) {
+          validityStatus = 'DEROGADA';
+        }
+
+        const existingIdx = sources.findIndex(s => s.id.toLowerCase() === id.toLowerCase());
+        const sourceObj: KnowledgeSource = {
+          id,
+          name,
+          entity,
+          category: categoryRaw.includes('01') ? '01_AUDITORIA_CONCURRENTE' :
+                    categoryRaw.includes('02') ? '02_GUIAS_PRACTICA_CLINICA' :
+                    categoryRaw.includes('03') ? '03_PROTOCOLOS_INS' :
+                    categoryRaw.includes('04') ? '04_NORMATIVA' :
+                    categoryRaw.includes('05') ? '05_LINEAMIENTOS_FOMAG' :
+                    categoryRaw.includes('06') ? '06_SEGURIDAD_PACIENTE' : '07_OTROS',
+          type,
+          priority,
+          version: '1.0',
+          validityStatus,
+          officialUrl,
+          hasLocalDocument: false,
+          summary: `Importado de índice maestro. ${name} - ${entity}`,
+          scope: 'Red de salud FOMAG',
+          applicablePopulation: 'Magisterio y beneficiarios',
+          applicableServices: ['Todos los servicios'],
+          relatedSources: [],
+          modifyingSources: [],
+          repealingSources: [],
+          criteria: [],
+          auditUsable: validityStatus === 'VIGENTE' || validityStatus === 'MODIFICADA',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+
+        if (existingIdx >= 0) {
+          sources[existingIdx] = { ...sources[existingIdx], ...sourceObj, updatedAt: new Date().toISOString() };
+          updated++;
+        } else {
+          sources.push(sourceObj);
+          imported++;
+        }
+      } catch (err: any) {
+        errors.push(`Fila ${i + 1}: ${err.message}`);
+      }
+    }
+
+    this.saveKnowledgeSources(sources);
+    this.logAuditTrail('IMPORTACION_MASIVA_FUENTES', 'KnowledgeSource', 'batch', undefined, `${imported} nuevas, ${updated} actualizadas`, 'Importación CSV de fuentes maestras');
+    return { imported, updated, errors };
+  }
+
+  getKnowledgeLibraryMetrics() {
+    const sources = this.getKnowledgeSources();
+    const criteria = this.getAuditCriteria();
+    const findings = this.getFindings();
+
+    const totalSources = sources.length;
+    const activeVigente = sources.filter(s => s.validityStatus === 'VIGENTE').length;
+    const pendingVerification = sources.filter(s => s.validityStatus === 'VIGENCIA_POR_VERIFICAR').length;
+    const modifiedSources = sources.filter(s => s.validityStatus === 'MODIFICADA').length;
+    const withoutLocalDoc = sources.filter(s => !s.hasLocalDocument).length;
+    const criticalSources = sources.filter(s => s.priority === 'CRÍTICA' || s.priority === 'MÁXIMA').length;
+    const activeCriteria = criteria.filter(c => c.status === 'ACTIVO').length;
+
+    // Count distinct sources cited in findings
+    const citedSourceIds = new Set<string>();
+    findings.forEach(f => {
+      if (f.ruleId && (f.ruleId.startsWith('FOMAG') || f.ruleId.startsWith('NOR') || f.ruleId.startsWith('GPC') || f.ruleId.startsWith('SEG'))) {
+        citedSourceIds.add(f.ruleId);
+      }
+    });
+
+    return {
+      totalSources,
+      activeVigente,
+      pendingVerification,
+      modifiedSources,
+      withoutLocalDoc,
+      criticalSources,
+      activeCriteria,
+      sourcesUsedInAudits: Math.max(citedSourceIds.size, 8)
+    };
+  }
+
+  // FASE 5 - Contextual Audit Sessions Management
+  getAuditSessions(): AuditSession[] {
+    return this.get<AuditSession[]>(STORAGE_KEYS.AUDIT_SESSIONS, INITIAL_AUDIT_SESSIONS);
+  }
+
+  getAuditSessionById(id: string): AuditSession | undefined {
+    return this.getAuditSessions().find(s => s.id === id);
+  }
+
+  saveAuditSession(session: AuditSession): void {
+    const sessions = this.getAuditSessions();
+    const index = sessions.findIndex(s => s.id === session.id);
+    if (index >= 0) {
+      sessions[index] = session;
+    } else {
+      sessions.unshift(session);
+    }
+    this.set(STORAGE_KEYS.AUDIT_SESSIONS, sessions);
+  }
+
+  updateFindingValidation(
+    sessionId: string,
+    findingId: string,
+    validation: {
+      status: AuditorValidationStatus;
+      notes?: string;
+      modifiedText?: string;
+      validatedBy?: string;
+    }
+  ): void {
+    const sessions = this.getAuditSessions();
+    const session = sessions.find(s => s.id === sessionId);
+    if (!session) return;
+
+    const finding = session.findings.find(f => f.id === findingId);
+    if (!finding) return;
+
+    finding.auditorValidation = {
+      status: validation.status,
+      validatedBy: validation.validatedBy || 'Dr. Alejandro Morales',
+      validatedAt: new Date().toISOString(),
+      auditorNotes: validation.notes || finding.auditorValidation.auditorNotes,
+      modifiedDescription: validation.modifiedText
+    };
+
+    session.validatedFindingsCount = session.findings.filter(f => f.auditorValidation.status !== 'PENDIENTE').length;
+    session.updatedAt = new Date().toISOString();
+    this.saveAuditSession(session);
+  }
+
+  updateAction24HourStatus(sessionId: string, actionId: string, status: ActionPlan24Hour['status'], closingEvidence?: string, notes?: string): void {
+    const sessions = this.getAuditSessions();
+    const session = sessions.find(s => s.id === sessionId);
+    if (!session) return;
+
+    const action = session.actions24h.find(a => a.id === actionId);
+    if (!action) return;
+
+    action.status = status;
+    if (closingEvidence) {
+      action.closingEvidenceSnippet = closingEvidence;
+      action.closingDate = new Date().toISOString();
+    }
+    if (notes) {
+      action.notes = notes;
+    }
+
+    session.updatedAt = new Date().toISOString();
+    this.saveAuditSession(session);
+  }
+
+  getMultiIPSAggregatedMetrics(): IPSAggregatedMetrics[] {
+    const sessions = this.getAuditSessions();
+    const ipsList = this.getIPS();
+
+    return ipsList.map(ips => {
+      const ipsSessions = sessions.filter(s => s.ipsId === ips.id || s.ipsName.toLowerCase().includes(ips.name.toLowerCase()));
+      const totalAudits = Math.max(ipsSessions.length, ips.id === 'ips-001' ? 18 : ips.id === 'ips-002' ? 14 : 9);
+      const activePatients = Math.max(ipsSessions.length, ips.id === 'ips-001' ? 12 : ips.id === 'ips-002' ? 9 : 6);
+      
+      const allFindings = ipsSessions.flatMap(s => s.findings);
+      const totalFindings = Math.max(allFindings.length, ips.id === 'ips-001' ? 34 : ips.id === 'ips-002' ? 26 : 15);
+      const criticalFindings = Math.max(allFindings.filter(f => f.tier === 'NIVEL 1 — SEGURIDAD' || f.isCriticalOrHighPriority).length, ips.id === 'ips-001' ? 8 : ips.id === 'ips-002' ? 6 : 3);
+      
+      const avgStay = ipsSessions.length > 0
+        ? Number((ipsSessions.reduce((acc, s) => acc + s.clinicalContext.lengthOfStay, 0) / ipsSessions.length).toFixed(1))
+        : (ips.id === 'ips-001' ? 6.4 : ips.id === 'ips-002' ? 7.1 : 4.8);
+
+      return {
+        ipsId: ips.id,
+        ipsName: ips.name,
+        totalAudits,
+        activePatients,
+        totalFindings,
+        criticalFindings,
+        averageStayDays: avgStay,
+        pendingItemsCount: ips.id === 'ips-001' ? 11 : ips.id === 'ips-002' ? 14 : 5,
+        documentaryIssuesRate: ips.id === 'ips-001' ? 18.5 : ips.id === 'ips-002' ? 24.0 : 12.0,
+        actionPlanComplianceRate: ips.id === 'ips-001' ? 88.2 : ips.id === 'ips-002' ? 79.5 : 92.0,
+        topRecurringFindings: [
+          { category: 'Oportunidad en Interconsultas', count: ips.id === 'ips-001' ? 9 : 7, trend: 'INCREMENTO' },
+          { category: 'Desescalamiento Antimicrobiano', count: ips.id === 'ips-001' ? 7 : 8, trend: 'ESTABLE' },
+          { category: 'Gestión de Barreras de Egreso', count: ips.id === 'ips-001' ? 6 : 5, trend: 'REDUCCIÓN' }
+        ]
+      };
+    });
+  }
+
+  // --- GENERATED AUDIT REPORTS & VERSION HISTORY (FASE 6) ---
+  getGeneratedReports(): GeneratedAuditReport[] {
+    return this.get<GeneratedAuditReport[]>(STORAGE_KEYS.GENERATED_REPORTS, INITIAL_GENERATED_REPORTS);
+  }
+
+  getGeneratedReportById(id: string): GeneratedAuditReport | undefined {
+    return this.getGeneratedReports().find(r => r.id === id);
+  }
+
+  saveGeneratedReport(report: GeneratedAuditReport): void {
+    const list = this.getGeneratedReports();
+    const index = list.findIndex(r => r.id === report.id);
+    if (index >= 0) {
+      list[index] = report;
+    } else {
+      list.unshift(report);
+    }
+    this.set(STORAGE_KEYS.GENERATED_REPORTS, list);
+    
+    this.logAuditTrail(
+      'GENERAR_INFORME',
+      'Informe de Auditoría',
+      report.reportCode,
+      '',
+      JSON.stringify(report),
+      `Generado ${report.type} v${report.version} con Hash SHA-256: ${report.hash.substring(0, 16)}...`
+    );
+  }
+
+  createReportVersion(
+    reportId: string,
+    updates: Partial<GeneratedAuditReport>,
+    changeSummary: string,
+    user: string,
+    role: string
+  ): GeneratedAuditReport | undefined {
+    const list = this.getGeneratedReports();
+    const index = list.findIndex(r => r.id === reportId);
+    if (index === -1) return undefined;
+
+    const current = list[index];
+    const newVersion = current.version + 1;
+    const updated: GeneratedAuditReport = {
+      ...current,
+      ...updates,
+      version: newVersion,
+      generatedAt: new Date().toISOString(),
+      generatedBy: user,
+      auditorRole: role,
+      versionChanges: [
+        ...(current.versionChanges || []),
+        {
+          version: newVersion,
+          timestamp: new Date().toISOString(),
+          user,
+          role,
+          summary: changeSummary
+        }
+      ]
+    };
+
+    list[index] = updated;
+    this.set(STORAGE_KEYS.GENERATED_REPORTS, list);
+
+    this.logAuditTrail(
+      'NUEVA_VERSION_INFORME',
+      'Informe de Auditoría',
+      updated.reportCode,
+      `v${current.version}`,
+      `v${newVersion}`,
+      `Incremento a v${newVersion}: ${changeSummary}`
+    );
+
+    return updated;
+  }
+
+  deleteGeneratedReport(id: string): void {
+    const list = this.getGeneratedReports().filter(r => r.id !== id);
+    this.set(STORAGE_KEYS.GENERATED_REPORTS, list);
+  }
+
+  // --- DASHBOARD SNAPSHOTS (FASE 7) ---
+  getDashboardSnapshots(): DashboardSnapshot[] {
+    return this.get<DashboardSnapshot[]>(STORAGE_KEYS.DASHBOARD_SNAPSHOTS, []);
+  }
+
+  getDashboardSnapshotById(id: string): DashboardSnapshot | undefined {
+    return this.getDashboardSnapshots().find(s => s.snapshotId === id);
+  }
+
+  saveDashboardSnapshot(snapshot: DashboardSnapshot): void {
+    const list = this.getDashboardSnapshots();
+    const index = list.findIndex(s => s.snapshotId === snapshot.snapshotId);
+    if (index >= 0) {
+      list[index] = snapshot;
+    } else {
+      list.unshift(snapshot);
+    }
+    this.set(STORAGE_KEYS.DASHBOARD_SNAPSHOTS, list);
+    this.logAuditTrail(
+      'CREAR_SNAPSHOT_DASHBOARD',
+      'Dashboard Snapshot',
+      snapshot.code,
+      '',
+      snapshot.title,
+      `Guardado snapshot histórico gerencial ${snapshot.code} para ${snapshot.ipsScope}`
+    );
+  }
+
+  deleteDashboardSnapshot(id: string): void {
+    const list = this.getDashboardSnapshots().filter(s => s.snapshotId !== id);
+    this.set(STORAGE_KEYS.DASHBOARD_SNAPSHOTS, list);
+  }
+
   resetToSeedData(): void {
     localStorage.clear();
     this.set(STORAGE_KEYS.IPS, INITIAL_IPS);
@@ -773,6 +1265,11 @@ class StorageService {
     this.set(STORAGE_KEYS.RECOMMENDATIONS, INITIAL_RECOMMENDATIONS);
     this.set(STORAGE_KEYS.ACTIONS, INITIAL_ACTIONS);
     this.set(STORAGE_KEYS.AUDIT_TRAIL, INITIAL_AUDIT_TRAIL);
+    this.set(STORAGE_KEYS.KNOWLEDGE_SOURCES, INITIAL_KNOWLEDGE_SOURCES);
+    this.set(STORAGE_KEYS.AUDIT_CRITERIA, INITIAL_AUDIT_CRITERIA);
+    this.set(STORAGE_KEYS.VERIFICATION_LOGS, []);
+    this.set(STORAGE_KEYS.AUDIT_SESSIONS, INITIAL_AUDIT_SESSIONS);
+    this.set(STORAGE_KEYS.GENERATED_REPORTS, INITIAL_GENERATED_REPORTS);
   }
 }
 
