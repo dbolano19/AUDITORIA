@@ -145,7 +145,7 @@ export const IPSComparison: React.FC<IPSComparisonProps> = ({
               <span>Matriz Comparativa Cruzada entre IPS</span>
             </h3>
             <p className="text-xs text-slate-500">
-              Datos consolidados reales a partir de auditorías concurrentes validadas.
+              Datos consolidados a partir de auditorías concurrentes en entorno de demostración.
             </p>
           </div>
 

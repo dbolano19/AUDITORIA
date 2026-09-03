@@ -1,56 +1,79 @@
 /**
- * INFRASTRUCTURE LAYER - PDF Processor
- * Handles PDF inspection, page count estimation, thumbnail simulation, and raw extraction pipelines.
+ * INFRASTRUCTURE LAYER - PDF Processor (FASE 9)
+ * Real PDF document inspection and binary parsing pipeline.
+ * Powered by pdfjs-dist and RealPdfProcessor.
  */
+import { RealPdfProcessor, realPdfProcessor, RealPDFMetadata } from './RealPdfProcessor';
 import { logger } from '../logging/loggerService';
 
 export interface PDFInspectionResult {
   fileName: string;
   fileSize: number;
+  actualPageCount: number;
   estimatedPages: number;
   previewPages: string[];
   isReadable: boolean;
   mimeType: string;
+  isEncrypted: boolean;
+  error?: string;
 }
 
 export class PDFProcessor {
+  private realProcessor: RealPdfProcessor;
+
+  constructor(realProcessor: RealPdfProcessor = realPdfProcessor) {
+    this.realProcessor = realProcessor;
+  }
+
   /**
-   * Inspects an uploaded file object or Blob to extract metadata and prepare preview pages
+   * Inspects an uploaded file object to extract real binary metadata and page count
    */
   async inspectDocument(file: File): Promise<PDFInspectionResult> {
-    logger.info('PDFProcessor', `Iniciando inspección de documento: ${file.name}`, {
+    logger.info('PDFProcessor', `Iniciando inspección binaria real de: ${file.name}`, {
       fileSize: file.size,
       mimeType: file.type
     });
 
-    // Estimate pages based on typical clinical record PDF sizes (~60KB - 150KB per page)
-    const estimatedPages = Math.max(1, Math.min(60, Math.ceil(file.size / (95 * 1024))));
+    const realMeta: RealPDFMetadata = await this.realProcessor.inspectDocument(file);
     const previewPages: string[] = [];
 
-    for (let i = 1; i <= Math.min(estimatedPages, 8); i++) {
-      previewPages.push(`Página ${i} de ${estimatedPages} - Expediente Clínico`);
+    const pageCount = realMeta.isValidPdf ? realMeta.actualPageCount : 0;
+    for (let i = 1; i <= Math.min(pageCount, 12); i++) {
+      previewPages.push(`Página ${i} de ${pageCount} - Expediente Clínico Real`);
     }
 
     return {
       fileName: file.name,
       fileSize: file.size,
-      estimatedPages,
+      actualPageCount: pageCount,
+      estimatedPages: pageCount, // Kept for backward compatibility
       previewPages,
-      isReadable: true,
-      mimeType: file.type || 'application/pdf'
+      isReadable: realMeta.isValidPdf,
+      mimeType: file.type || 'application/pdf',
+      isEncrypted: realMeta.isEncrypted,
+      error: realMeta.error
     };
   }
 
   /**
-   * Simulates binary text stream extraction for clinical document text
+   * Extracts real text stream from all pages of the PDF file
    */
   async extractRawText(file: File): Promise<string> {
-    logger.info('PDFProcessor', `Extrayendo texto crudo de: ${file.name}`);
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve(`[HISTORIA CLÍNICA INTRAHOSPITALARIA - ${file.name}]\nServicio: Hospitalización / UCI\nDocumento indexado para procesamiento concurrente FOMAG.`);
-      }, 300);
-    });
+    logger.info('PDFProcessor', `Extrayendo flujo de texto real de: ${file.name}`);
+    const meta = await this.realProcessor.inspectDocument(file);
+    if (!meta.isValidPdf || meta.actualPageCount === 0) {
+      throw new Error(meta.error || 'El archivo no es un documento PDF válido.');
+    }
+
+    const textParts: string[] = [];
+    for (let i = 1; i <= meta.actualPageCount; i++) {
+      const pageExtract = await this.realProcessor.extractPageText(file, i);
+      if (pageExtract.hasNativeText) {
+        textParts.push(`[FOLIO/PÁGINA ${i}]\n${pageExtract.rawText}`);
+      }
+    }
+
+    return textParts.join('\n\n');
   }
 }
 

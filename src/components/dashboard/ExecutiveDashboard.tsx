@@ -119,9 +119,12 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
         
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-4">
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-cyan-100 text-cyan-900 border border-cyan-300">
-                FASE 7 — CONTROL GERENCIAL
+                CONTROL GERENCIAL
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                ENTORNO DE DEMOSTRACIÓN
               </span>
               <span className="text-xs text-slate-500">• Red FOMAG Barranquilla</span>
             </div>
@@ -129,7 +132,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
               Dashboard Gerencial, Indicadores y Comparación de IPS
             </h1>
             <p className="text-xs text-slate-500">
-              Análisis concurrente basado en datos reales: Clínica Bonadona, Clínica de la Misericordia y Clínica Costa.
+              Análisis concurrente basado en datos de demostración: Clínica Bonadona, Clínica de la Misericordia y Clínica Costa.
             </p>
           </div>
 

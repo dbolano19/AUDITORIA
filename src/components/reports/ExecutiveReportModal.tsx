@@ -82,12 +82,15 @@ export const ExecutiveReportModal: React.FC<ExecutiveReportModalProps> = ({
               <TrendingUp className="w-5 h-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-base font-bold text-white tracking-tight">
                   GENERADOR DE INFORME EJECUTIVO GERENCIAL
                 </h2>
                 <span className="text-2xs bg-amber-900/80 text-amber-300 font-bold px-2 py-0.5 rounded-full border border-amber-700">
                   Nivel Directivo
+                </span>
+                <span className="text-2xs bg-amber-500/20 text-amber-300 font-bold px-2 py-0.5 rounded-full border border-amber-500/40">
+                  ENTORNO DE DEMOSTRACIÓN
                 </span>
               </div>
               <p className="text-xs text-slate-300">

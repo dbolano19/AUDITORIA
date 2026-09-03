@@ -1246,6 +1246,27 @@ class StorageService {
     this.set(STORAGE_KEYS.DASHBOARD_SNAPSHOTS, list);
   }
 
+  // --- PROCESSED PAGES & DOCUMENT COVERAGE (FASE 9) ---
+  saveProcessedDocumentPages(documentId: string, pages: any[], coverage: any): void {
+    const key = `auditoria_ia_doc_pages_${documentId}`;
+    this.set(key, { pages, coverage, savedAt: new Date().toISOString() });
+  }
+
+  getProcessedDocumentPages(documentId: string): { pages: any[]; coverage: any } | null {
+    const key = `auditoria_ia_doc_pages_${documentId}`;
+    return this.get<{ pages: any[]; coverage: any } | null>(key, null);
+  }
+
+  saveEvidenceValidations(documentId: string, validations: any[]): void {
+    const key = `auditoria_ia_evidence_val_${documentId}`;
+    this.set(key, validations);
+  }
+
+  getEvidenceValidations(documentId: string): any[] {
+    const key = `auditoria_ia_evidence_val_${documentId}`;
+    return this.get<any[]>(key, []);
+  }
+
   resetToSeedData(): void {
     localStorage.clear();
     this.set(STORAGE_KEYS.IPS, INITIAL_IPS);

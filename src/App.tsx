@@ -18,6 +18,7 @@ import { AuditExpedienteView } from './components/expediente/AuditExpedienteView
 import { PatientContextAuditDashboard } from './components/audit/PatientContextAuditDashboard';
 import { MultiIPSComparisonView } from './components/ips/MultiIPSComparisonView';
 import { ContextualTestSuiteRunner } from './components/audit/ContextualTestSuiteRunner';
+import { ClinicalIngestionTestSuiteRunner } from './components/audit/ClinicalIngestionTestSuiteRunner';
 import { UserManagementView } from './components/security/UserManagementView';
 import { SecurityAuditLogView } from './components/security/SecurityAuditLogView';
 import { SecurityTestSuiteRunner } from './components/security/SecurityTestSuiteRunner';
@@ -138,7 +139,7 @@ export function App() {
   };
 
   const getViewTitle = () => {
-    if (openedContextualSessionId) return 'Auditoría Concurrente Contextual del Paciente (FASE 5)';
+    if (openedContextualSessionId) return 'Auditoría Concurrente Contextual del Paciente';
     if (openedExpedienteAuditId) return 'Expediente de Auditoría Concurrente (14 Módulos)';
     switch (currentView) {
       case 'dashboard': return 'Dashboard Principal';
@@ -151,10 +152,11 @@ export function App() {
       case 'actions': return 'Acciones y Seguimiento de Compromisos';
       case 'indicators': return 'Indicadores de Calidad Asistencial';
       case 'reports': return 'Informes Oficiales de Auditoría';
-      case 'users': return 'Administración de Usuarios y Roles (FASE 8)';
-      case 'security_logs': return 'Historial de Seguridad y Trazabilidad (FASE 8)';
+      case 'users': return 'Administración de Usuarios y Roles';
+      case 'security_logs': return 'Historial de Seguridad y Trazabilidad';
       case 'security_tests': return 'Suite de Validación de Seguridad (25 Casos FOMAG)';
       case 'knowledge': return 'Biblioteca Maestra de Normativa y Criterios FOMAG';
+      case 'ingestion_tests': return 'Suite de Ingestión Documental Real (PDF/OCR)';
       case 'contextual_tests': return 'Suite de Validación y Pruebas Clínicas (20 Casos FOMAG)';
       case 'settings': return 'Configuración y Roles';
       default: return 'Auditoría Concurrente IA';
@@ -333,6 +335,10 @@ export function App() {
                   <KnowledgeLibraryView
                     activeUser={activeUser}
                   />
+                )}
+
+                {currentView === 'ingestion_tests' && (
+                  <ClinicalIngestionTestSuiteRunner />
                 )}
 
                 {currentView === 'contextual_tests' && (

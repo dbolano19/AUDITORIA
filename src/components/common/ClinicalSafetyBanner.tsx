@@ -15,7 +15,7 @@ export const ClinicalSafetyBanner: React.FC = () => {
       </div>
       <div className="hidden lg:flex items-center gap-1 text-[11px] text-amber-800 font-medium shrink-0">
         <Info className="w-3.5 h-3.5" />
-        <span>Fase 1: Estructura & Expediente</span>
+        <span>Sistema de Auditoría FOMAG</span>
       </div>
     </aside>
   );

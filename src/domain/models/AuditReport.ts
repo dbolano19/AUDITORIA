@@ -68,6 +68,7 @@ export interface DetailedReportData {
   auditorRole: string;
   version: number;
   status: AuditReportStatus;
+  dataOrigin?: 'DEMO' | 'SIMULATED' | 'REAL';
   
   // Patient minimized data
   patientId: string;
@@ -240,6 +241,7 @@ export interface ExecutiveReportData {
   generatedBy: string;
   version: number;
   status: AuditReportStatus;
+  dataOrigin?: 'DEMO' | 'SIMULATED' | 'REAL';
   
   // Key Aggregated Metrics
   totalAuditsPerformed: number;
@@ -289,6 +291,7 @@ export interface GeneratedAuditReport {
   patientName: string;
   type: AuditReportType;
   status: AuditReportStatus;
+  dataOrigin?: 'DEMO' | 'SIMULATED' | 'REAL';
   version: number;
   generatedAt: string;
   generatedBy: string;

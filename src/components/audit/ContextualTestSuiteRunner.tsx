@@ -327,7 +327,7 @@ export const ContextualTestSuiteRunner: React.FC = () => {
         details = selection.discardedCriteria.slice(0, 3);
       } else {
         // Generic successful test pass
-        outcome = `Comportamiento verificado conforme a la especificación técnica de la FASE 5 (FOMAG).`;
+        outcome = `Comportamiento verificado conforme a la especificación técnica (FOMAG).`;
       }
     } catch (err: any) {
       status = 'FALLIDO';
@@ -374,7 +374,7 @@ export const ContextualTestSuiteRunner: React.FC = () => {
           <div>
             <div className="flex items-center gap-2 text-indigo-600 font-bold text-xs uppercase tracking-wider mb-1">
               <Sparkles className="w-4 h-4" />
-              <span>Suite de Validación Clínica Automatizada (FASE 5)</span>
+              <span>Suite de Validación Clínica Automatizada</span>
             </div>
             <h1 className="text-2xl font-black text-slate-900">
               Plan de Pruebas Obligatorio (20 Casos Clínicos FOMAG)

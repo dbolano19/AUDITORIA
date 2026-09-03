@@ -289,7 +289,7 @@ export const ReportTestSuiteRunner: React.FC = () => {
               <FileCheck2 className="w-5 h-5" />
             </div>
             <h2 className="text-base font-bold text-white tracking-tight">
-              BANCO DE PRUEBAS AUTOMATIZADO — GENERADOR DE INFORMES PDF (FASE 6)
+              BANCO DE PRUEBAS AUTOMATIZADO — GENERADOR DE INFORMES PDF
             </h2>
           </div>
           <p className="text-xs text-slate-300 mt-1">
@@ -426,7 +426,7 @@ export const ReportTestSuiteRunner: React.FC = () => {
           )}
 
           <div className="mt-4 pt-3 border-t border-slate-200 text-2xs text-slate-500 flex items-center justify-between">
-            <span>Suite oficial de verificación Fase 6</span>
+            <span>Suite oficial de verificación</span>
             <span className="font-semibold">FOMAG Concurrente 2026</span>
           </div>
         </div>

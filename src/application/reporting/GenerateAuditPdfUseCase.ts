@@ -242,6 +242,7 @@ export class GenerateAuditPdfUseCase {
       auditorRole: options.auditorRole || session.auditorRole,
       version,
       status,
+      dataOrigin: session.dataOrigin || 'DEMO',
       patientId: session.patientId,
       patientDocType: 'CC',
       patientDocNumber: session.docNumber,
@@ -382,6 +383,7 @@ export class GenerateAuditPdfUseCase {
       generatedBy: auditorName || 'Dra. Patricia Charry',
       version: 1,
       status: 'FINAL',
+      dataOrigin: ipsSessions.some(s => s.dataOrigin === 'REAL') ? 'REAL' : 'DEMO',
       totalAuditsPerformed: totalAudits,
       totalPatientsAudited: totalPatients,
       totalConfirmedFindings: totalConfirmed,
@@ -832,6 +834,12 @@ export class GenerateAuditPdfUseCase {
         <div class="meta-item-label">Médico Auditor Responsable</div>
         <div class="meta-item-value">${data.auditorName}</div>
         <div style="font-size: 8.5pt; color: #64748b;">${data.auditorRole} · Versión ${data.version}.0 (${data.status})</div>
+      </div>
+      <div>
+        <div class="meta-item-label">Origen de Datos</div>
+        <div class="meta-item-value" style="font-size: 9pt; color: ${data.dataOrigin === 'REAL' ? '#047857' : '#b45309'};">
+          ${data.dataOrigin === 'REAL' ? 'Historia Clínica Real Procesada (PDF/OCR)' : 'ENTORNO DE DEMOSTRACIÓN (Datos Seed)'}
+        </div>
       </div>
     </div>
 
@@ -1554,7 +1562,7 @@ export class GenerateAuditPdfUseCase {
     <div class="system-badge">${data.systemName}</div>
     <h1 class="cover-title">${data.reportTitle}</h1>
     <div style="font-size: 9pt; color: #475569; font-weight: 600;">
-      Institución: <strong>${data.ipsName}</strong> (${data.city}) · Período: <strong>${data.period}</strong> · Generado: <strong>${data.generationDate}</strong>
+      Institución: <strong>${data.ipsName}</strong> (${data.city}) · Período: <strong>${data.period}</strong> · Generado: <strong>${data.generationDate}</strong> · Origen: <strong style="color: ${data.dataOrigin === 'REAL' ? '#047857' : '#b45309'};">${data.dataOrigin === 'REAL' ? 'Datos Clínicos Reales Procesados' : 'ENTORNO DE DEMOSTRACIÓN'}</strong>
     </div>
   </div>
 

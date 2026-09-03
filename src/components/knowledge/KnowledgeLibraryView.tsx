@@ -1436,7 +1436,7 @@ SEG-001,Paquetes Instruccionales de Seguridad del Paciente - Prevención de Caí
                   <Play className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-slate-900">Suite de 14 Casos de Prueba Normativa (FASE 4)</h3>
+                  <h3 className="text-base font-bold text-slate-900">Suite de 14 Casos de Prueba Normativa</h3>
                   <p className="text-xs text-slate-500">Verificación rigurosa de vigencia, precedencia, evidencia y temporalidad</p>
                 </div>
               </div>

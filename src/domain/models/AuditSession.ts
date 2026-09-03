@@ -54,6 +54,8 @@ export interface AuditSession {
   auditorExecutiveConclusion: string;
   recommendations: string[];
   
+  dataOrigin?: 'DEMO' | 'SIMULATED' | 'REAL';
+  
   status: AuditSessionStatus;
   createdAt: string;
   updatedAt: string;

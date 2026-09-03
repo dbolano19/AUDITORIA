@@ -484,7 +484,7 @@ export const SecurityTestSuiteRunner: React.FC = () => {
             </div>
             <div>
               <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                <span>Suite de Pruebas de Seguridad y Segregación (FASE 8)</span>
+                <span>Suite de Pruebas de Seguridad y Segregación</span>
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
                   25 Casos FOMAG
                 </span>

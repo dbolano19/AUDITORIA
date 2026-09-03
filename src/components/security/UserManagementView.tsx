@@ -206,7 +206,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
             </div>
             <div>
               <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                <span>Administración de Usuarios y Control de Acceso (FASE 8)</span>
+                <span>Administración de Usuarios y Control de Acceso</span>
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-cyan-100 text-cyan-800 border border-cyan-200">
                   Segregación Estricta
                 </span>

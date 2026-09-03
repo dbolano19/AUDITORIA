@@ -561,6 +561,7 @@ export const SEED_AUDIT_SESSION_1: AuditSession = {
     'Evaluar por médico internista egreso con esquema oral de amoxicilina/clavulanato.',
     'Garantizar formulación ambulatoria y cita de control poshospitalaria FOMAG.'
   ],
+  dataOrigin: 'DEMO',
   status: 'Validada y Firmada',
   createdAt: '2025-05-18T10:00:00Z',
   updatedAt: '2025-05-18T11:30:00Z'

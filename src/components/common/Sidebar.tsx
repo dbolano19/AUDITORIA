@@ -35,6 +35,7 @@ export type MainNavView =
   | 'reports'
   | 'knowledge'
   | 'contextual_tests'
+  | 'ingestion_tests'
   | 'users'
   | 'security_logs'
   | 'security_tests'
@@ -141,8 +142,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'users' as MainNavView,
       label: 'Usuarios y Roles',
       icon: Users,
-      badge: 'FASE 8',
-      badgeColor: 'bg-cyan-600 text-white',
+      badge: null,
       visible: canManageUsers
     },
     {
@@ -169,8 +169,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
       visible: true
     },
     {
+      id: 'ingestion_tests' as MainNavView,
+      label: 'Pruebas Ingestión (PDF/OCR)',
+      icon: FileSearch,
+      badge: '12 Casos',
+      badgeColor: 'bg-cyan-600 text-white',
+      visible: true
+    },
+    {
       id: 'contextual_tests' as MainNavView,
-      label: 'Suite Pruebas FASE 5',
+      label: 'Suite Pruebas Clínicas',
       icon: Sparkles,
       badge: '20 Casos',
       badgeColor: 'bg-slate-700 text-slate-200',
@@ -216,7 +224,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <h1 className="font-bold text-sm text-white tracking-tight flex items-center gap-1.5">
                 AUDITORÍA IA
                 <span className="text-[10px] font-semibold uppercase bg-cyan-500/20 text-cyan-300 px-1.5 py-0.2 rounded border border-cyan-400/30">
-                  Fase 1
+                  FOMAG
                 </span>
               </h1>
               <p className="text-[10px] text-slate-400">Concurrente Hospitalaria</p>

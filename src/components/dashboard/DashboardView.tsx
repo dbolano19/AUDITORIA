@@ -88,7 +88,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             }`}
           >
             <Activity className="w-4 h-4 text-cyan-400" />
-            <span>Dashboard Gerencial (Fase 7)</span>
+            <span>Dashboard Gerencial</span>
           </button>
 
           <button

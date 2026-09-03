@@ -137,7 +137,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-                  Generador Profesional de Informes de Auditoría (Fase 6)
+                  Generador Profesional de Informes de Auditoría
                 </h1>
                 <span className="text-2xs bg-emerald-100 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full border border-emerald-300">
                   PDF Oficial & SHA-256
@@ -270,11 +270,18 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                         <span className="font-extrabold text-cyan-900 bg-cyan-100/80 px-2 py-0.5 rounded text-2xs">
                           {s.id}
                         </span>
-                        <span className={`text-2xs font-bold px-2 py-0.5 rounded-full border ${
-                          isConfirmed ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-amber-100 text-amber-800 border-amber-300'
-                        }`}>
-                          {isConfirmed ? 'FINAL' : 'BORRADOR'}
-                        </span>
+                        <div className="flex items-center gap-1">
+                          <span className={`text-2xs font-bold px-1.5 py-0.2 rounded ${
+                            s.dataOrigin === 'REAL' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-800 border border-amber-200'
+                          }`}>
+                            {s.dataOrigin === 'REAL' ? 'HC REAL' : 'DEMO'}
+                          </span>
+                          <span className={`text-2xs font-bold px-2 py-0.5 rounded-full border ${
+                            isConfirmed ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-amber-100 text-amber-800 border-amber-300'
+                          }`}>
+                            {isConfirmed ? 'FINAL' : 'BORRADOR'}
+                          </span>
+                        </div>
                       </div>
                       <div className="font-bold text-slate-900 text-xs mt-1">{pat?.fullName || `Paciente CC ${s.docNumber}`}</div>
                       <div className="text-2xs text-slate-600 mt-0.5">{s.ipsName} · Estancia: {s.clinicalContext.lengthOfStay}d</div>
@@ -297,11 +304,18 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
               {/* Header Action Bar */}
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-slate-200 gap-3">
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <FileCheck2 className="w-5 h-5 text-cyan-700" />
                     <h3 className="font-bold text-sm text-slate-900">
                       Vista Previa Oficial (18 Secciones) — {currentSession?.id}
                     </h3>
+                    <span className={`text-2xs font-bold px-2 py-0.5 rounded-full border ${
+                      currentSession?.dataOrigin === 'REAL'
+                        ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                        : 'bg-amber-100 text-amber-900 border-amber-300'
+                    }`}>
+                      {currentSession?.dataOrigin === 'REAL' ? 'Datos Clínicos Reales Procesados' : 'ENTORNO DE DEMOSTRACIÓN'}
+                    </span>
                   </div>
                   <p className="text-2xs text-slate-500 mt-0.5">
                     Archivo: <code className="font-mono text-slate-700">{generateAuditPdfUseCase.generateStandardFileName(currentSession?.ipsName || 'IPS', currentSession?.id || 'AUD', currentSession?.auditDate || '2026-09-01')}</code>

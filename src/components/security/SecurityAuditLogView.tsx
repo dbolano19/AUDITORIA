@@ -115,7 +115,7 @@ export const SecurityAuditLogView: React.FC<SecurityAuditLogViewProps> = ({ acti
             </div>
             <div>
               <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                <span>Historial de Seguridad y Trazabilidad (FASE 8)</span>
+                <span>Historial de Seguridad y Trazabilidad</span>
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
                   AuditLog Inmutable
                 </span>

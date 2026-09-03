@@ -45,9 +45,12 @@ export const ExecutiveReportModal: React.FC<ExecutiveReportModalProps> = ({
               <FileText className="w-5 h-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="font-mono text-xs font-bold text-cyan-400 bg-slate-800 px-2 py-0.5 rounded">
                   {report.reportCode}
+                </span>
+                <span className="text-2xs bg-amber-500/20 text-amber-300 font-bold px-2 py-0.5 rounded-full border border-amber-500/40">
+                  ENTORNO DE DEMOSTRACIÓN
                 </span>
                 <span className="text-xs text-slate-400">• Informe Ejecutivo de Auditoría</span>
               </div>
